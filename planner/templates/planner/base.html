@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Source Line Planner{% endblock %}</title>
+    <style>
+        :root {
+            --dark-green: #1a3a1a;
+            --light-green: #2c5a2c;
+            --text-color: #e0e0e0;
+        }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--dark-green);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .content-wrapper {
+            flex: 1 0 auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+            flex-grow: 1; /* Ensures this stretches to push footer down */
+        }
+        header {
+            background-color: var(--light-green);
+            padding: 20px 0;
+            text-align: center;
+        }
+        nav {
+            background-color: var(--light-green);
+            padding: 10px 0;
+        }
+        nav ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            text-align: center;
+        }
+        nav ul li {
+            display: inline;
+            margin: 0 10px;
+        }
+        nav ul li a {
+            color: var(--text-color);
+            text-decoration: none;
+        }
+        main {
+            padding: 20px 0;
+        }
+        footer {
+            background-color: var(--light-green);
+            color: var(--text-color);
+            text-align: center;
+            padding: 10px 0;
+            flex-shrink: 0;
+        }
+        .messages {
+            list-style-type: none;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: var(--light-green);
+            border-radius: 5px;
+        }
+        .messages li {
+            margin: 5px 0;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="content-wrapper">
+        <header>
+            <h1>Source Line Planner</h1>
+        </header>
+        <nav>
+            <ul>
+                <li><a href="{% url 'home' %}">Home</a></li>
+                <li><a href="{% url 'display_points' %}">Display Points</a></li>
+                <li><a href="{% url 'load_preplot' %}">Load Preplot</a></li>
+                <li><a href="{% url 'load_sequence' %}">Load Sequence</a></li>
+            </ul>
+        </nav>
+        <div class="container">
+            {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            <main>
+                {% block content %}
+                {% endblock %}
+            </main>
+        </div>
+    </div>
+    <footer>
+        <p>&copy; 2024 Good Job Everybody. All rights reserved.</p>
+    </footer>       
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

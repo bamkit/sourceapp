@@ -1,0 +1,12 @@
+{% extends 'planner/base.html' %}
+
+{% block title %}Load Sequence File - OBN Planner{% endblock %}
+
+{% block content %}
+<h2>Load Sequence File</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="sequence_file" accept=".p190" multiple>
+    <button type="submit">Upload</button>
+</form>
+{% endblock %}

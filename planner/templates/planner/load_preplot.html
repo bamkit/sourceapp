@@ -1,0 +1,10 @@
+{% extends 'planner/base.html' %}  <!-- Assuming you have a base template -->
+
+{% block content %}
+<h2>Load Preplot File</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="preplot_file" accept=".p190">
+    <button type="submit">Upload</button>
+</form>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'planner/base.html' %}
+
+{% block title %}Load Preplot File - OBN Planner{% endblock %}
+
+{% block content %}
+<h2>Load SRC P190 File</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="p190_file" accept=".p190">
+    <button type="submit">Upload</button>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // You can add any JavaScript specific to this page here
+    // For example, you might want to add some client-side validation:
+    document.querySelector('form').addEventListener('submit', function(e) {
+        var fileInput = document.querySelector('input[type="file"]');
+        if (!fileInput.files.length) {
+            e.preventDefault();
+            alert('Please select a file to upload.');
+        } else if (!fileInput.files[0].name.endsWith('.p190')) {
+            e.preventDefault();
+            alert('Please select a .p190 file.');
+        }
+    });
+</script>
+{% endblock %}
