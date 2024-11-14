@@ -1,10 +1,18 @@
-{% extends 'planner/base.html' %}  <!-- Assuming you have a base template -->
+{% extends 'planner/base.html' %}
+<!-- Assuming you have a base template -->
 
 {% block content %}
 <h2>Load Preplot File</h2>
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    <input type="file" name="preplot_file" accept=".p190">
+    <!-- Dropdown for Preplot Type -->
+    <label for="preplot_type">Preplot Type:</label>
+    <select name="preplot_type" id="preplot_type">
+        <option value="3D">3D</option>
+        <option value="4D">4D</option>
+    </select>
+
+    <input type="file" name="preplot_file" accept=".p190" />
     <button type="submit">Upload</button>
 </form>
 {% endblock %}

@@ -21,14 +21,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-yt80=ysb3%cb6!a#-)#uhfekds5ztb&o+u@fk01l4aa=y$#l4r')
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-yt80=ysb3%cb6!a#-)#uhfekds5ztb&o+u@fk01l4aa=y$#l4r')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['mysite-ll14.onrender.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    '.repl.co',
+    '.replit.app',
+    '.replit.dev',
+    '68453f72-e598-43ea-87bb-239bb8cabf15-00-15ndtiia6tmja.worf.replit.dev',
+]
 
-
+CSRF_TRUSTED_ORIGINS = [
+    'https://68453f72-e598-43ea-87bb-239bb8cabf15-00-15ndtiia6tmja.worf.replit.dev',
+    # Add other trusted origins if needed
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -73,7 +83,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'obn_app.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
@@ -85,25 +94,27 @@ DATABASES = {
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        'NAME':
+        'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'NAME':
+        'django.contrib.auth.password_validation.MinimumLengthValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        'NAME':
+        'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        'NAME':
+        'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
@@ -115,7 +126,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
