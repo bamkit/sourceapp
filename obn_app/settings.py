@@ -33,6 +33,8 @@ ALLOWED_HOSTS = [
     '.replit.app',
     '.replit.dev',
     '68453f72-e598-43ea-87bb-239bb8cabf15-00-15ndtiia6tmja.worf.replit.dev',
+    'localhost',
+    '127.0.0.1',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
