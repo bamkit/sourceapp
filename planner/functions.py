@@ -263,8 +263,14 @@ def srecords_to_df(srec):
 def get_4d_preplot(fourd_preplot_file):
 
     # Read the file into a pandas DataFrame, assuming each line is a new record
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+    if hasattr(fourd_preplot_file, 'read'):
+        # It's a file-like object (like TemporaryUploadedFile)
+        lines = fourd_preplot_file.read().decode('utf-8').splitlines()
+    else:
+        # It's a string path
+        with open(fourd_preplot_file, 'r') as f:
+            lines = f.readlines()
+
 
     # Initialize an empty list to hold the parsed data
     data_list = []
@@ -277,8 +283,9 @@ def get_4d_preplot(fourd_preplot_file):
 
         # Preplot line (e.g., 5007)
         preplot_line = line[1:5]
+        source_number = line[17]
 
-        # Shotpoint (e.g., 5950273017.60N)
+        # Shotpoint (e.g., 5950)
         shotpoint = line[21:25].strip()
 
         # Latitude (degrees, minutes, seconds, N/S)
@@ -310,6 +317,7 @@ def get_4d_preplot(fourd_preplot_file):
         # Append the extracted values to the list
         data_list.append({
             "preplot_line": preplot_line,
+            "source_number": source_number,
             "shotpoint": shotpoint,
             "latitude": latitude,
             "longitude": longitude,
@@ -319,6 +327,10 @@ def get_4d_preplot(fourd_preplot_file):
 
     # Convert the list of data dictionaries to a pandas DataFrame
     df = pd.DataFrame(data_list)
+    
+    # Filter for source_number == '2'
+    df = df[df['source_number'] == '2']
+
     return df
 
 
@@ -378,3 +390,10 @@ def get_4d_preplot_endpoints(fourd_preplot_df):
     # Create a new DataFrame from the processed data
     result_df = pd.DataFrame(processed_data)
     return result_df
+
+if __name__ == "__main__":
+
+    fourd_preplot = r"D:\web_app_projects\webapp\myobnapp\sourceapp\KMS4D2024_NAD27_UTM15N_v2-1_Orca.P190"
+    fourd_df = get_4d_preplot(fourd_preplot)
+    df = get_4d_preplot_endpoints(fourd_df)
+    print(df.columns)

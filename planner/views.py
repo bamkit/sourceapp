@@ -191,8 +191,7 @@ class LoadPreplotView(View):
             preplot_lines = []
 
             # Check for existing preplot lines to avoid duplicate creation
-            existing_lines = set(
-                PreplotLine.objects.values_list('preplot', flat=True))
+            existing_lines = set(PreplotLine.objects.values_list('preplot', flat=True))
 
             for index, row in preplot_df.iterrows():
                 preplot_id = int(row['linename'])
@@ -266,18 +265,18 @@ class LoadPreplotView(View):
 
         if preplot_type == "4D":
             # Get the uploaded file
-            preplot_file = request.FILES['preplot_file']
+            fourd_preplot = request.FILES['preplot_file']
 
             # Validate the file extension
-            if not preplot_file.name.endswith('.p190'):
+            if not fourd_preplot.name.endswith('.p190'):
                 messages.error(
                     request, 'Invalid file type. Please upload a .p190 file.')
                 return redirect('load_preplot')
 
-            # Process the preplot file for 3D type
-            preplot_df = get_4d_preplot(preplot_file)
+            # Process the preplot file for 4D type
+            fourd_df = get_4d_preplot(fourd_preplot)
 
-            preplot_lines_df = get_4d_preplot_endpoints(preplot_df)
+            preplot_lines_df = get_4d_preplot_endpoints(fourd_df)
 
             preplot_lines = []
             
@@ -310,7 +309,7 @@ class LoadPreplotView(View):
 
             messages.success(
                 request,
-                f'Successfully loaded {preplot_file.name}. Processed {len(preplot_lines)} new lines.'
+                f'Successfully loaded {fourd_preplot.name}. Processed {len(preplot_lines)} new lines.'
             )
 
         return redirect('home')  # Redirect after successful upload
