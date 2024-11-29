@@ -183,6 +183,7 @@ def get_preplot_shots(df,
 def srecords_to_df(srec):
 
     full_lines = []
+    flines = None
 
     def dms_to_dd(dms, direction):
         degrees = int(dms[:2] if direction in 'NS' else dms[:3])
@@ -193,13 +194,28 @@ def srecords_to_df(srec):
             dd = -dd
         return dd
 
-    if hasattr(srec, 'read'):
-        # It's a file-like object (like TemporaryUploadedFile)
-        flines = srec.read().decode('utf-8').splitlines()
+    def try_decode(file_obj, encoding, errors='strict'):
+        try:
+            file_obj.seek(0)
+            return file_obj.read().decode(encoding, errors=errors).splitlines()
+        except UnicodeDecodeError as e:
+            print(f"{encoding} decode failed: {e}")
+            return None
+
+    # Try different encodings in order
+    for encoding_attempt in [
+        ('utf-8', 'strict'),
+        ('latin1', 'strict'),
+        ('ascii', 'replace'),
+        ('cp1252', 'replace')  # Windows-1252 encoding
+        ]:
+        encoding, errors = encoding_attempt
+        flines = try_decode(srec, encoding, errors)
+        if flines is not None:
+            print(f"Successfully decoded using {encoding}")
+            break
     else:
-        # It's a string path
-        with open(srec, 'r') as f:
-            flines = f.readlines()
+        raise UnicodeDecodeError("Failed to decode file with any encoding")
 
     for k, v in enumerate(flines):
         if v[0] == 'S':
@@ -393,7 +409,6 @@ def get_4d_preplot_endpoints(fourd_preplot_df):
 
 if __name__ == "__main__":
 
-    fourd_preplot = r"D:\web_app_projects\webapp\myobnapp\sourceapp\KMS4D2024_NAD27_UTM15N_v2-1_Orca.P190"
-    fourd_df = get_4d_preplot(fourd_preplot)
-    df = get_4d_preplot_endpoints(fourd_df)
-    print(df.columns)
+    seq = r"D:\web_app_projects\webapp\myobnapp\sourceapp\5049111014.NAD27.p190"
+    seq_df = srecords_to_df(seq)
+    print(seq_df.head())

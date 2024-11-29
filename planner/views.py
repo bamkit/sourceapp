@@ -17,12 +17,13 @@ from django.shortcuts import redirect
 # from django.db import transaction
 from .functions import *
 import pandas as pd
-from background_task import background
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.utils import timezone
 from math import sqrt, atan2, degrees
 
+from celery import shared_task
+import io
 
 class HomeView(View):
 
@@ -315,14 +316,29 @@ class LoadPreplotView(View):
         return redirect('home')  # Redirect after successful upload
 
 
-@background(schedule=60)
+@shared_task
 def process_sequence_file(file_path):
     try:
-        # Read the file using Django's storage system
-        with default_storage.open(file_path) as file:
-            df = srecords_to_df(file)
+        # Read the file content in a way that ensures the file handle is properly closed
+        file_content = None
+        try:
+            with default_storage.open(file_path, 'rb') as file:
+                file_content = file.read()
+        except Exception as e:
+            print(f"Error reading file: {e}")
+            raise
+
+        if file_content is None:
+            raise ValueError("Could not read file content")
+
+        # Convert the content to StringIO or process it directly
+        df = srecords_to_df(io.BytesIO(file_content))
 
         filename = os.path.basename(file_path)
+        linename = str(df['linename'].iloc[0])
+
+        # Add debug print
+        print(f"Linename: {linename}, Length: {len(linename)}")
 
         # Convert jday and time to a single datetime column
         df['datetime'] = pd.to_datetime(df['jday'].astype(str) + ' ' +
@@ -331,14 +347,15 @@ def process_sequence_file(file_path):
 
         # Drop the original jday and time columns
         df = df.drop(['jday', 'time'], axis=1)
+        print(df.head())
 
+         # Create sequence with proper integer conversion
         sequence_file_obj, created = Sequence.objects.get_or_create(
-            linename=str(df['linename'].iloc[0]),
+            linename=linename,
             defaults={
-                'preplot_number': filename[0:4],
-                'type': filename[4],
-                'pass_number': filename[5],
-                'sequence_number': filename[6:10],
+                'type': int(linename[4]),
+                'pass_number': int(linename[5]),
+                'sequence_number': int(linename[6:10]),
                 'filename': filename
             })
 
@@ -367,9 +384,15 @@ def process_sequence_file(file_path):
         # Bulk create all SequenceFileDetail instances
         AcquisitionShotPoint.objects.bulk_create(sequence_file_details)
 
+    except Exception as e:
+        print(f"Error processing file: {e}")
+        raise
     finally:
-        # Delete the temporary file
-        default_storage.delete(file_path)
+        try:
+            # Clean up the temporary file
+            default_storage.delete(file_path)
+        except Exception as e:
+            print(f"Error deleting temporary file: {e}")
 
     return len(df)
 
@@ -398,6 +421,11 @@ class LoadSequenceView(View):
             files_to_process = []
             files_already_loaded = []
 
+            # Check if the 'temp_sequences' directory exists, if not, create it
+            temp_sequences_dir = os.path.join(settings.MEDIA_ROOT, 'temp_sequences')
+            if not os.path.exists(temp_sequences_dir):
+                os.makedirs(temp_sequences_dir)
+
             for sequence_file in sequence_files:
                 if not sequence_file.name.endswith('.p190'):
                     messages.error(
@@ -408,7 +436,7 @@ class LoadSequenceView(View):
 
                 # Check if file has already been loaded
                 if Sequence.objects.filter(
-                        sequence_number=sequence_file.name).exists():
+                        sequence_number=sequence_file.name[6:10]).exists():
                     files_already_loaded.append(sequence_file.name)
                     continue
 
@@ -420,7 +448,8 @@ class LoadSequenceView(View):
 
             # Schedule background tasks for files to process
             for file_path in files_to_process:
-                process_sequence_file(file_path, schedule=timezone.now())
+                process_sequence_file.delay(file_path)  # Using .delay() to run as async task
+            # Prepare messages
 
             # Prepare messages
             if files_to_process:

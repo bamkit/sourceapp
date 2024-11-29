@@ -50,6 +50,7 @@ class Sequence(models.Model):
     pass_number = models.IntegerField()
     sequence_number = models.IntegerField()
     linename = models.CharField(null=True, max_length=255)
+    filename = models.CharField(null=True, max_length=255)
     
     def __str__(self):
         return f"{self.linename}"
