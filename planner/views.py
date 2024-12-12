@@ -30,52 +30,11 @@ from datetime import timedelta
 class HomeView(View):
 
     def get(self, request):
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        import io
-        import base64
-        
+        # def get(self, request):
         files = File.objects.all()
         points = PreplotShotPoints.objects.all()
         polygon = Polygon.objects.first()
         sequences = Sequence.objects.all()
-        
-        # Create completion status pie chart
-        completed_lines = PreplotLine.objects.filter(completed=True).count()
-        uncompleted_lines = PreplotLine.objects.filter(completed=False).count()
-        
-        plt.figure(figsize=(8, 8))
-        plt.pie([completed_lines, uncompleted_lines], 
-                labels=['Completed', 'Uncompleted'],
-                colors=['#2ecc71', '#e74c3c'],
-                autopct='%1.1f%%')
-        plt.title('Line Completion Status')
-        
-        # Save completion chart to buffer
-        completion_buffer = io.BytesIO()
-        plt.savefig(completion_buffer, format='png', transparent=True)
-        completion_buffer.seek(0)
-        completion_image = base64.b64encode(completion_buffer.getvalue()).decode()
-        plt.close()
-        
-        # Create shotpoints comparison pie chart
-        total_acq_points = AcquisitionShotPoint.objects.count()
-        total_preplot_points = PreplotShotPoints.objects.count()
-        
-        plt.figure(figsize=(8, 8))
-        plt.pie([total_acq_points, total_preplot_points],
-                labels=['Acquisition Points', 'Preplot Points'],
-                colors=['#3498db', '#e67e22'],
-                autopct='%1.1f%%')
-        plt.title('Shotpoints Distribution')
-        
-        # Save shotpoints chart to buffer
-        shotpoints_buffer = io.BytesIO()
-        plt.savefig(shotpoints_buffer, format='png', transparent=True)
-        shotpoints_buffer.seek(0)
-        shotpoints_image = base64.b64encode(shotpoints_buffer.getvalue()).decode()
-        plt.close()
 
         # Fetch first and last shotpoints for each Sequence
         sequence_points = []
@@ -121,9 +80,7 @@ class HomeView(View):
             'points': points,
             'polygon': polygon,
             'preplot_lines': json.dumps(lines_data),
-            'sequence_points': json.dumps(sequence_points),
-            'completion_chart': completion_image,
-            'shotpoints_chart': shotpoints_image
+            'sequence_points': json.dumps(sequence_points)
         }
         return render(request, 'planner/home.html', context)
 

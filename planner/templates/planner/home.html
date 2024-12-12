@@ -34,14 +34,8 @@
         background: #1a2634;
         border-radius: 10px;
         padding: 15px;
-        margin-bottom: 20px;
+        height: 300px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        text-align: center;
-    }
-    
-    .chart-container img {
-        max-width: 100%;
-        height: auto;
     }
 
     .table-section {
@@ -132,10 +126,10 @@
             <div class="stats-label">Source Lines</div>
         </div>
         <div class="chart-container">
-            <img src="data:image/png;base64,{{ completion_chart }}" alt="Completion Status">
+            <canvas id="progressChart"></canvas>
         </div>
         <div class="chart-container">
-            <img src="data:image/png;base64,{{ shotpoints_chart }}" alt="Shotpoints Distribution">
+            <canvas id="completionChart"></canvas>
         </div>
     </div>
 
@@ -392,8 +386,95 @@
             return 'N/A';
         }
     }
+
+    // Add charts
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+    const completionCtx = document.getElementById('completionChart').getContext('2d');
+
+    // Calculate completion stats
+    const completedCount = preplotLines.filter(line => line.completed).length;
+    const uncompletedCount = preplotLines.length - completedCount;
+
+    // Progress Pie Chart
+    new Chart(progressCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Completed Lines', 'Uncompleted Lines'],
+            datasets: [{
+                data: [completedCount, uncompletedCount],
+                backgroundColor: ['#2ecc71', '#e74c3c']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Line Completion Status',
+                    color: '#ecf0f1'
+                },
+                legend: {
+                    labels: {
+                        color: '#ecf0f1'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const percentage = ((value / preplotLines.length) * 100).toFixed(1);
+                            return `${context.label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
     });
-    
+
+    // Completion Timeline Chart
+    new Chart(completionCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Progress'],
+            datasets: [{
+                label: 'Completed Lines',
+                data: [completedLines],
+                backgroundColor: '#2ecc71'
+            }, {
+                label: 'Remaining Lines',
+                data: [remainingLines],
+                backgroundColor: '#e74c3c'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    stacked: true,
+                    ticks: {
+                        color: '#ecf0f1'
+                    }
+                },
+                x: {
+                    stacked: true,
+                    ticks: {
+                        color: '#ecf0f1'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Progress Overview',
+                    color: '#ecf0f1'
+                },
+                legend: {
+                    labels: {
+                        color: '#ecf0f1'
+                    }
+                }
+            }
+        }
 
         // Original table and map interaction code remains the same...
     });
