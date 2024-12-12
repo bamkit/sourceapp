@@ -1,0 +1,169 @@
+class LoadPreplotView(View):
+
+    def get(self, request):
+        preplot = PreplotLine.objects.first()
+
+        if preplot is None:
+            messages.error(
+                request,
+                'No preplot data available. Please upload a preplot file first.'
+            )
+            return render(request, 'planner/load_preplot.html')
+        elif preplot.loaded:
+            messages.success(request, 'Preplot file already loaded.')
+            return redirect('home')
+
+        return render(request, 'planner/load_preplot.html'
+                      )  # Added this to display the form if no errors
+
+    def post(self, request):
+        # Check if file exists in the request
+        if 'preplot_file' not in request.FILES:
+            messages.error(request, 'No file was uploaded.')
+            return redirect('load_preplot')
+
+        # Check if "preplot_type" is provided in POST data
+        preplot_type = request.POST.get('preplot_type')
+        if not preplot_type:
+            messages.error(request, 'Please select a preplot type.')
+            return redirect('load_preplot')
+
+        # Only proceed if "3D" is selected
+        if preplot_type == "3D":
+            # Get the uploaded file
+            preplot_file = request.FILES['preplot_file']
+
+            # Validate the file extension
+            if not preplot_file.name.endswith('.p190'):
+                messages.error(
+                    request, 'Invalid file type. Please upload a .p190 file.')
+                return redirect('load_preplot')
+
+            # Process the preplot file for 3D type
+            preplot_df = get_preplot_coordinates(preplot_file)
+
+            preplot_lines = []
+
+            # Check for existing preplot lines to avoid duplicate creation
+            existing_lines = set(PreplotLine.objects.values_list('preplot', flat=True))
+
+            for index, row in preplot_df.iterrows():
+                preplot_id = int(row['linename'])
+
+                # Skip if preplot line already exists
+                if preplot_id in existing_lines:
+                    continue
+
+                preplot_line = PreplotLine(loaded=True,
+                                           preplot=preplot_id,
+                                           shotpoint1=int(row['sp1']),
+                                           eastings1=float(row['east1']),
+                                           northings1=float(row['north1']),
+                                           latitude1=float(row['lat1_deg']),
+                                           longitude1=float(row['lon1_deg']),
+                                           shotpoint2=int(row['sp2']),
+                                           eastings2=float(row['east2']),
+                                           northings2=float(row['north2']),
+                                           latitude2=float(row['lat2_deg']),
+                                           longitude2=float(row['lon2_deg']))
+                preplot_lines.append(preplot_line)
+
+            # Bulk create new PreplotLines
+            PreplotLine.objects.bulk_create(preplot_lines)
+
+            messages.success(
+                request,
+                f'Successfully loaded {preplot_file.name}. Processed {len(preplot_lines)} new lines.'
+            )
+
+            # Process shotpoints for each preplot line
+            preplot_lines_dict = get_preplot_shots(preplot_df)
+
+            # Fetch all relevant PreplotLines once, to avoid querying inside the loop
+            preplot_line_map = {
+                pl.preplot: pl
+                for pl in PreplotLine.objects.filter(
+                    preplot__in=preplot_lines_dict.keys())
+            }
+
+            preplot_shotpoints = []
+
+            for line_name, preplotshots_df in preplot_lines_dict.items():
+                preplot_line = preplot_line_map.get(int(line_name))
+
+                if preplot_line:
+                    for index, row in preplotshots_df.iterrows():
+                        shotpoint = PreplotShotPoints(
+                            preplot=preplot_line,
+                            shotpoint=int(row['sp']),
+                            easting=float(row['east']),
+                            northing=float(row['north']),
+                            latitude=float(row['lat']),
+                            longitude=float(row['lon']))
+                        preplot_shotpoints.append(shotpoint)
+
+            # Bulk create PreplotShotPoints
+            PreplotShotPoints.objects.bulk_create(preplot_shotpoints)
+
+            messages.success(
+                request,
+                f'Successfully processed {len(preplot_lines)} lines and {len(preplot_shotpoints)} shotpoints.'
+            )
+
+        else:
+            # Handle the "4D" case or other types as needed
+            messages.info(
+                request,
+                'Preplot type 4D selected. Please ensure you have the appropriate processing logic for this type.'
+            )
+
+        if preplot_type == "4D":
+            # Get the uploaded file
+            fourd_preplot = request.FILES['preplot_file']
+
+            # Validate the file extension
+            if not fourd_preplot.name.endswith('.p190'):
+                messages.error(
+                    request, 'Invalid file type. Please upload a .p190 file.')
+                return redirect('load_preplot')
+
+            # Process the preplot file for 4D type
+            fourd_df = get_4d_preplot(fourd_preplot)
+
+            preplot_lines_df = get_4d_preplot_endpoints(fourd_df)
+
+            preplot_lines = []
+            
+            # Check for existing preplot lines to avoid duplicate creation
+            existing_lines = set(PreplotLine.objects.values_list('preplot', flat=True))
+
+            for index, row in preplot_lines_df.iterrows():
+                preplot_id = int(row['linename'])
+
+                # Skip if preplot line already exists
+                if preplot_id in existing_lines:
+                    continue
+
+                preplot_line = PreplotLine(loaded=True,
+                                           preplot=preplot_id,
+                                           shotpoint1=int(row['sp1']),
+                                           eastings1=float(row['east1']),
+                                           northings1=float(row['north1']),
+                                           latitude1=float(row['lat1_deg']),
+                                           longitude1=float(row['lon1_deg']),
+                                           shotpoint2=int(row['sp2']),
+                                           eastings2=float(row['east2']),
+                                           northings2=float(row['north2']),
+                                           latitude2=float(row['lat2_deg']),
+                                           longitude2=float(row['lon2_deg']))
+                preplot_lines.append(preplot_line)
+
+            # Bulk create new PreplotLines
+            PreplotLine.objects.bulk_create(preplot_lines)
+
+            messages.success(
+                request,
+                f'Successfully loaded {fourd_preplot.name}. Processed {len(preplot_lines)} new lines.'
+            )
+
+        return redirect('home')  # Redirect after successful upload

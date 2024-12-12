@@ -4,116 +4,168 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-    .container {
+    .dashboard {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 20px;
+        padding: 20px;
+        min-height: calc(100vh - 200px); /* Changed from height to min-height */
+        margin-bottom: 20px; /* Add some space before footer */
+    }
+
+    .map-section {
+        grid-column: span 8;
+        background: #1a2634;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .stats-section {
+        grid-column: span 4;
         display: flex;
         flex-direction: column;
-        height: 100vh;
+        gap: 20px;
     }
-    .map-container {
-        flex: 1;
-        min-height: 400px;
+
+    .chart-container {
+        background: #1a2634;
+        border-radius: 10px;
+        padding: 15px;
+        height: 300px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
-    #map { 
+
+    .table-section {
+        grid-column: span 12;
+        background: #1a2634;
+        border-radius: 10px;
+        padding: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    #map {
         height: 100%;
         width: 100%;
+        border-radius: 8px;
     }
-    .table-container {
-        height: 400px;
-        display: flex;
-        flex-direction: column;
-    }
-    .table-scroll {
-        overflow-y: auto;
-        flex: 1;
-    }
+
     table {
         width: 100%;
         border-collapse: collapse;
+        background: #1a2634;
     }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
+
+    th,
+    td {
+        padding: 12px;
         text-align: left;
+        border-bottom: 1px solid #2c3e50;
     }
+
     th {
-        background-color: #270c1b;
+        background-color: #2c3e50;
+        color: #ecf0f1;
         position: sticky;
         top: 0;
     }
-    tr:nth-child(even) {
-        background-color: #959198;
-    }
+
     tr:hover {
-        background-color: #2b9643;
+        background-color: #2c3e50;
     }
-    .delete-btn {
-        background-color: #ff4136;
-        color: white;
-        border: none;
-        padding: 5px 10px;
-        cursor: pointer;
-    }
-    .delete-btn:hover {
-        background-color: #d30000;
-    }
-    .delete-all-btn {
-        background-color: #ff4136;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        cursor: pointer;
-        margin-top: 20px;
-    }
-    .delete-all-btn:hover {
-        background-color: #d30000;
-    }
+
     .line-data {
-        font-weight: bold;
-        font-size: 1.1em;
-        min-width: 100px;
-        color: cyan;
+        color: #3498db;
+        font-weight: 500;
     }
-    .highlighted {
-        background-color: #ffff99 !important;
+
+    .stats-card {
+        background: #2c3e50;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .stats-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #3498db;
+    }
+
+    .stats-label {
+        color: #ecf0f1;
+        font-size: 14px;
+    }
+    
+    .legend {
+        background-color: white;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+        margin-bottom: 10px !important;
+    }
+
+    .legend h4 {
+        font-size: 14px;
+        font-weight: bold;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="map-container">
+<div class="dashboard">
+    <div class="map-section">
         <div id="map"></div>
     </div>
-    <div class="table-container">
+
+    <div class="stats-section">
+        <div class="stats-card">
+            <div class="stats-value" id="totalLines">0</div>
+            <div class="stats-label">Source Lines</div>
+        </div>
+        <div class="chart-container">
+            <canvas id="progressChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="completionChart"></canvas>
+        </div>
+    </div>
+
+    <div class="table-section">
         <h3>Loaded Preplot Lines</h3>
-        <div class="table-scroll">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Source Line</th>
-                        <th>Shotpoint 1</th>
-                        <th>Shotpoint 2</th>
-                        <th>Generate Points</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- This will be populated by JavaScript -->
-                </tbody>
-            </table>
-        </div>
-        <div id="no-lines-message" style="display: none;">
-            <p>No Preplot lines have been loaded yet.</p>
-        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Source Line</th>
+                    <th>Shotpoint 1</th>
+                    <th>Shotpoint 2</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- This will be populated by JavaScript -->
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}
+
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var preplotLines = JSON.parse('{{ preplot_lines|escapejs }}');
-    var sequencePoints = {{ sequence_points|safe }};
+    document.addEventListener('DOMContentLoaded', function () {
+        var preplotLines = JSON.parse('{{ preplot_lines|escapejs }}');
+        var sequencePoints = {{sequence_points| safe}};
+    
+        // Calculate completed and remaining lines
+        const totalLines = preplotLines.length;
+
+        // Update total lines stats
+        document.getElementById('totalLines').textContent = totalLines;
+
+    
+    // Original map code remains the same...
     var map = L.map('map').setView([0, 0], 2);  // Default view
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -124,17 +176,74 @@ document.addEventListener('DOMContentLoaded', function() {
     var sequenceLines = {};
     var tableBody = document.querySelector('table tbody');
 
+    // Add legend
+    var legend = L.control({position: 'bottomright'});
+
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'info legend');
+        div.style.backgroundColor = 'white';
+        div.style.padding = '10px';
+        div.style.borderRadius = '5px';
+        div.style.border = '2px solid rgba(0,0,0,0.2)';
+
+        // Add legend title
+        div.innerHTML = '<h4 style="margin: 0 0 10px 0; color: black;">Sequence Lines</h4>';
+
+        // Add legend items
+        div.innerHTML += 
+            '<div style="margin-bottom: 5px;">' +
+            '<div style="display: inline-block; width: 20px; height: 3px; background: blue; margin-right: 8px;"></div>' +
+            '<span style="color: black;">Increasing SP</span></div><br>' +
+            '<div style="margin-bottom: 5px;">' +
+            '<div style="display: inline-block; width: 20px; height: 3px; background: green; margin-right: 8px;"></div>' +
+            '<span style="color: black;">Decreasing SP</span></div><br>' +
+            '<div>' +
+            '<div style="display: inline-block; width: 20px; height: 3px; background: gray; margin-right: 8px;"></div>' +
+            '<span style="color: black;">Preplot Line</span></div>';
+
+        return div;
+    };
+
+    legend.addTo(map);
+
+    // Add circle markers legend
+    var pointLegend = L.control({position: 'bottomright'});
+
+    pointLegend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'info legend');
+        div.style.backgroundColor = 'white';
+        div.style.padding = '10px';
+        div.style.borderRadius = '5px';
+        div.style.border = '2px solid rgba(0,0,0,0.2)';
+        div.style.marginBottom = '10px';
+
+        // Add legend title
+        div.innerHTML = '<h4 style="margin: 0 0 10px 0; color: black;">Sequence Points</h4>';
+
+        // Add legend items
+        div.innerHTML += 
+            '<div style="margin-bottom: 5px;">' +
+            '<div style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ff7800; margin-right: 8px;"></div>' +
+            '<span style="color: black;">First Point</span></div><br>' +
+            '<div>' +
+            '<div style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #00ff00; margin-right: 8px;"></div>' +
+            '<span style="color: black;">Last Point</span></div>';
+
+        return div;
+    };
+
+    pointLegend.addTo(map);
+
     // Add preplot lines
     var preplotLayerGroup = L.layerGroup().addTo(map);
-    preplotLines.forEach(function(line, index) {
+    preplotLines.forEach(function (line, index) {
         // Create table row
         var row = document.createElement('tr');
         row.innerHTML = `
-            <td class="line-data">${line.preplot}</td>
-            <td class="line-data">${line.shotpoint1 || 'N/A'}</td>
-            <td class="line-data">${line.shotpoint2 || 'N/A'}</td>
-            <td><button class="generate-points-btn" data-line-index="${index}">Generate Points</button></td>
-        `;
+                <td class="line-data">${line.preplot}</td>
+                <td class="line-data">${line.shotpoint1 || 'N/A'}</td>
+                <td class="line-data">${line.shotpoint2 || 'N/A'}</td>
+            `;
         row.setAttribute('data-line-index', index);
         tableBody.appendChild(row);
 
@@ -151,25 +260,25 @@ document.addEventListener('DOMContentLoaded', function() {
         bounds.extend(polyline.getBounds());
 
         // Add hover effects
-        polyline.on('mouseover', function() {
+        polyline.on('mouseover', function () {
             highlightLine(polyline, row);
         });
 
-        polyline.on('mouseout', function() {
+        polyline.on('mouseout', function () {
             resetHighlight(polyline, row);
         });
 
-        row.addEventListener('mouseover', function() {
+        row.addEventListener('mouseover', function () {
             highlightLine(polyline, row);
         });
 
-        row.addEventListener('mouseout', function() {
+        row.addEventListener('mouseout', function () {
             resetHighlight(polyline, row);
         });
-    }); 
+    });
 
     // Add sequence points and prepare sequence lines
-    sequencePoints.forEach(function(point) {
+    sequencePoints.forEach(function (point) {
         var circleMarker = L.circleMarker([point.lat, point.lon], {
             radius: 3,
             fillColor: point.point_type === 'First' ? '#ff7800' : '#00ff00',
@@ -179,10 +288,10 @@ document.addEventListener('DOMContentLoaded', function() {
             fillOpacity: 0.8
         }).addTo(map);
 
-        circleMarker.bindPopup('Sequence: ' + point.sequence_name + 
-                        '<br>Type: ' + point.point_type +
-                        '<br>SP: ' + point.sp + 
-                        '<br>Depth: ' + point.depth);
+        circleMarker.bindPopup('Sequence: ' + point.sequence_name +
+            '<br>Type: ' + point.point_type +
+            '<br>SP: ' + point.sp +
+            '<br>Depth: ' + point.depth);
         bounds.extend(circleMarker.getLatLng());
 
         if (!sequenceLines[point.sequence_name]) {
@@ -194,47 +303,49 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Draw sequence lines
-    for (var sequenceName in sequenceLines) {
-        if (sequenceLines.hasOwnProperty(sequenceName)) {
-            var points = sequenceLines[sequenceName];
-            if (points.length === 2) {
-                var startPoint = points[0];
-                var endPoint = points[1];
-                var isIncreasing = parseInt(endPoint.sp) > parseInt(startPoint.sp);
-                var lineColor = isIncreasing ? 'blue' : 'green';
-                
-                var polyline = L.polyline([startPoint.latlng, endPoint.latlng], {
-                    color: lineColor, 
-                    weight: 3
-                }).addTo(map);
+        // Draw sequence lines
+        for (var sequenceName in sequenceLines) {
+            if (sequenceLines.hasOwnProperty(sequenceName)) {
+                var points = sequenceLines[sequenceName];
+                if (points.length === 2) {
+                    var startPoint = points[0];
+                    var endPoint = points[1];
+                    var isIncreasing = parseInt(endPoint.sp) > parseInt(startPoint.sp);
+                    var lineColor = isIncreasing ? 'blue' : 'green';
 
-                polyline.bindTooltip(sequenceName, {
-                    permanent: false,
-                    direction: 'auto',
-                    opacity: 0.7,
-                    className: 'sequence-tooltip'
-                });
+                    (function(color) {
+                        var polyline = L.polyline([startPoint.latlng, endPoint.latlng], {
+                            color: color, 
+                            weight: 3
+                        }).addTo(map);
 
-                // Change line color on hover
-                polyline.on('mouseover', function (e) {
-                    this.setStyle({
-                        color: 'red',
-                        weight: 5
-                    });
-                });
+                        polyline.bindTooltip(sequenceName, {
+                            permanent: false,
+                            direction: 'auto',
+                            opacity: 0.7,
+                            className: 'sequence-tooltip'
+                        });
 
-                polyline.on('mouseout', function (e) {
-                    this.setStyle({
-                        color: lineColor,
-                        weight: 3
-                    });
-                });
+                        // Change line color on hover
+                        polyline.on('mouseover', function (e) {
+                            this.setStyle({
+                                color: 'red',
+                                weight: 5
+                            });
+                        });
 
-                bounds.extend(polyline.getBounds());
+                        polyline.on('mouseout', function (e) {
+                            this.setStyle({
+                                color: color,  // Use the original color stored in closure
+                                weight: 3
+                            });
+                        });
+
+                        bounds.extend(polyline.getBounds());
+                    })(lineColor);  // Pass the original color to the closure
+                }
             }
         }
-    }
 
     // Fit map to bounds
     if (!bounds.isValid()) {
@@ -248,11 +359,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelector('table').style.display = 'none';
         document.querySelector('form').style.display = 'none';
     }
-
-    // Debug: Log the data
-    console.log('Preplot Lines:', preplotLines);
-    console.log('Sequence Points:', sequencePoints);
-    console.log('Sequence Lines:', sequenceLines);
 
     function highlightLine(polyline, row) {
         polyline.setStyle({
@@ -280,6 +386,87 @@ document.addEventListener('DOMContentLoaded', function() {
             return 'N/A';
         }
     }
-});
+    });
+    // Add charts
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+    const completionCtx = document.getElementById('completionChart').getContext('2d');
+
+    const completedLines = sequencePoints.length / 2; // Since we have start and end points
+    const remainingLines = totalLines - completedLines;
+
+    // Progress Pie Chart
+    new Chart(progressCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Completed', 'Remaining'],
+            datasets: [{
+                data: [completedLines, remainingLines],
+                backgroundColor: ['#2ecc71', '#e74c3c']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Line Completion Status',
+                    color: '#ecf0f1'
+                },
+                legend: {
+                    labels: {
+                        color: '#ecf0f1'
+                    }
+                }
+            }
+        }
+    });
+
+    // Completion Timeline Chart
+    new Chart(completionCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Progress'],
+            datasets: [{
+                label: 'Completed Lines',
+                data: [completedLines],
+                backgroundColor: '#2ecc71'
+            }, {
+                label: 'Remaining Lines',
+                data: [remainingLines],
+                backgroundColor: '#e74c3c'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    stacked: true,
+                    ticks: {
+                        color: '#ecf0f1'
+                    }
+                },
+                x: {
+                    stacked: true,
+                    ticks: {
+                        color: '#ecf0f1'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Progress Overview',
+                    color: '#ecf0f1'
+                },
+                legend: {
+                    labels: {
+                        color: '#ecf0f1'
+                    }
+                }
+            }
+        }
+
+        // Original table and map interaction code remains the same...
+    });
 </script>
 {% endblock %}

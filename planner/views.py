@@ -1,29 +1,31 @@
-import csv
-import re
 import os
-# import tempfile
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.views import View
 from django.contrib import messages
 from .models import File, PreplotShotPoints, Polygon, PreplotLine
 from .models import Sequence, AcquisitionShotPoint
-from .forms import CSVUploadForm
 import json
-from django.http import JsonResponse
-from pyproj import CRS, Transformer
 from django.shortcuts import redirect
-# from django.db import transaction
-from .functions import *
+from .functions import (
+    srecords_to_df,
+    get_preplot_coordinates,
+    get_preplot_shots,
+    get_4d_preplot,
+    get_4d_preplot_endpoints,
+    # Add other specific functions you need
+)
 import pandas as pd
 from django.core.exceptions import ValidationError
 from django.conf import settings
-from django.utils import timezone
-from math import sqrt, atan2, degrees
-
+from django.http import JsonResponse
 from celery import shared_task
 import io
+from django.views.generic import TemplateView
+from django.db.models import Min, Max
+from datetime import timedelta
+
 
 class HomeView(View):
 
@@ -82,57 +84,117 @@ class HomeView(View):
         return render(request, 'planner/home.html', context)
 
 
-class DisplayPointsView(View):
+# OLD DISPLAY VIEW. USED TO GENERATE PREPLOT SHOTPOINTS FOR 4D PREPLOT
+# class StatsView(View):
 
-    def get(self, request):
-        files = File.objects.all()
-        points = PreplotShotPoints.objects.all()
-        polygon = Polygon.objects.first()
-        sequences = Sequence.objects.all()
+#     def get(self, request):
+#         files = File.objects.all()
+#         points = PreplotShotPoints.objects.all()
+#         polygon = Polygon.objects.first()
+#         sequences = Sequence.objects.all()
 
-        # Fetch first and last shotpoints for each Sequence
-        sequence_points = []
-        for sequence in sequences:
-            first_point = AcquisitionShotPoint.objects.filter(
-                sequence=sequence).order_by('datetime').first()
-            last_point = AcquisitionShotPoint.objects.filter(
-                sequence=sequence).order_by('datetime').last()
+#         # Fetch first and last shotpoints for each Sequence
+#         sequence_points = []
+#         for sequence in sequences:
+#             first_point = AcquisitionShotPoint.objects.filter(
+#                 sequence=sequence).order_by('datetime').first()
+#             last_point = AcquisitionShotPoint.objects.filter(
+#                 sequence=sequence).order_by('datetime').last()
 
-            if first_point and last_point:
-                sequence_points.extend([{
-                    'lat': first_point.mean_lat,
-                    'lon': first_point.mean_lon,
-                    'sp': first_point.sp,
-                    'depth': first_point.depth,
-                    'linename': sequence.linename,
-                    'point_type': 'First'
-                }, {
-                    'lat': last_point.mean_lat,
-                    'lon': last_point.mean_lon,
-                    'sp': last_point.sp,
-                    'depth': last_point.depth,
-                    'linename': sequence.linename,
-                    'point_type': 'Last'
-                }])
+#             if first_point and last_point:
+#                 sequence_points.extend([{
+#                     'lat': first_point.mean_lat,
+#                     'lon': first_point.mean_lon,
+#                     'sp': first_point.sp,
+#                     'depth': first_point.depth,
+#                     'linename': sequence.linename,
+#                     'point_type': 'First'
+#                 }, {
+#                     'lat': last_point.mean_lat,
+#                     'lon': last_point.mean_lon,
+#                     'sp': last_point.sp,
+#                     'depth': last_point.depth,
+#                     'linename': sequence.linename,
+#                     'point_type': 'Last'
+#                 }])
 
-        # Add P190 lines data
-        lines = PreplotLine.objects.all()
-        lines_data = [{
-            'preplot': line.preplot,
-            'latitude1': line.latitude1,
-            'longitude1': line.longitude1,
-            'latitude2': line.latitude2,
-            'longitude2': line.longitude2
-        } for line in lines]
+#         # Add P190 lines data
+#         lines = PreplotLine.objects.all()
+#         lines_data = [{
+#             'preplot': line.preplot,
+#             'latitude1': line.latitude1,
+#             'longitude1': line.longitude1,
+#             'latitude2': line.latitude2,
+#             'longitude2': line.longitude2
+#         } for line in lines]
 
-        context = {
-            'files': files,
-            'points': points,
-            'polygon': polygon,
-            'preplot_lines': json.dumps(lines_data),
-            'sequence_points': json.dumps(sequence_points)
-        }
-        return render(request, 'planner/display.html', context)
+#         # Add preplot points to context
+#         preplot_points = PreplotShotPoints.objects.all().values(
+#             'preplot__preplot', 'shotpoint', 'latitude', 'longitude',
+#             'source_number')
+
+#         context = {
+#             'files': files,
+#             'points': points,
+#             'polygon': polygon,
+#             'preplot_lines': json.dumps(lines_data),
+#             'sequence_points': json.dumps(sequence_points),
+#             'preplot_points': json.dumps(list(preplot_points))
+#         }
+#         return render(request, 'planner/stats.html', context)
+
+#     def post(self, request):
+
+#         print("Post request received")  # Debug print
+#         print("FILES:", request.FILES)  # Debug print
+
+#         if 'preplot_file' not in request.FILES:
+#             return JsonResponse({
+#                 'success': False,
+#                 'error': 'No file uploaded'
+#             })
+
+#         uploaded_file = request.FILES['preplot_file']
+
+#         try:
+#             # Process the file using get_4d_preplot
+#             df = get_4d_preplot(uploaded_file)
+#             print(df.head())
+
+#             # Create PreplotShotPoints objects
+#             preplot_points = []
+#             preplot_lines = {
+#                 pl.preplot: pl
+#                 for pl in PreplotLine.objects.all()
+#             }
+
+#             for _, row in df.iterrows():
+#                 preplot_id = int(row['preplot_line'])
+#                 preplot_line = preplot_lines.get(preplot_id)
+
+#                 if preplot_line:
+#                     point = PreplotShotPoints(
+#                         preplot=preplot_line,
+#                         shotpoint=int(row['shotpoint']),
+#                         easting=float(row['easting']),
+#                         northing=float(row['northing']),
+#                         latitude=float(row['latitude']),
+#                         longitude=float(row['longitude']),
+#                         source_number=row['source_number'])
+#                     preplot_points.append(point)
+#             # Bulk create all points
+#             PreplotShotPoints.objects.bulk_create(preplot_points)
+
+#             return JsonResponse({
+#                 'success': True,
+#                 'message': f'Successfully loaded {len(preplot_points)} preplot points'
+#             })
+
+#         except Exception as e:
+#             return JsonResponse({
+#                 'success': False,
+#                 'error': str(e)
+#             })
 
 
 class UploadPolygonView(View):
@@ -164,6 +226,9 @@ class LoadPreplotView(View):
                       )  # Added this to display the form if no errors
 
     def post(self, request):
+        print("Request data:", request.POST)  # Output the POST data
+        print("Files uploaded:", request.FILES)  # Output the uploaded files
+
         # Check if file exists in the request
         if 'preplot_file' not in request.FILES:
             messages.error(request, 'No file was uploaded.')
@@ -192,7 +257,8 @@ class LoadPreplotView(View):
             preplot_lines = []
 
             # Check for existing preplot lines to avoid duplicate creation
-            existing_lines = set(PreplotLine.objects.values_list('preplot', flat=True))
+            existing_lines = set(
+                PreplotLine.objects.values_list('preplot', flat=True))
 
             for index, row in preplot_df.iterrows():
                 preplot_id = int(row['linename'])
@@ -275,14 +341,16 @@ class LoadPreplotView(View):
                 return redirect('load_preplot')
 
             # Process the preplot file for 4D type
-            fourd_df = get_4d_preplot(fourd_preplot)
+            df = get_4d_preplot(fourd_preplot)
 
+            fourd_df = df[df['source_number'] == '2']
             preplot_lines_df = get_4d_preplot_endpoints(fourd_df)
 
             preplot_lines = []
-            
+
             # Check for existing preplot lines to avoid duplicate creation
-            existing_lines = set(PreplotLine.objects.values_list('preplot', flat=True))
+            existing_lines = set(
+                PreplotLine.objects.values_list('preplot', flat=True))
 
             for index, row in preplot_lines_df.iterrows():
                 preplot_id = int(row['linename'])
@@ -336,9 +404,17 @@ def process_sequence_file(file_path):
 
         filename = os.path.basename(file_path)
         linename = str(df['linename'].iloc[0])
+        preplot_number = int(linename[0:4])
 
         # Add debug print
-        print(f"Linename: {linename}, Length: {len(linename)}")
+        # print(f"Linename: {linename}, Length: {len(linename)}")
+
+        # Find the corresponding PreplotLine
+        try:
+            preplot_line = PreplotLine.objects.get(preplot=preplot_number)
+        except PreplotLine.DoesNotExist:
+            print(f"No PreplotLine found for preplot number {preplot_number}")
+            return
 
         # Convert jday and time to a single datetime column
         df['datetime'] = pd.to_datetime(df['jday'].astype(str) + ' ' +
@@ -347,16 +423,17 @@ def process_sequence_file(file_path):
 
         # Drop the original jday and time columns
         df = df.drop(['jday', 'time'], axis=1)
-        print(df.head())
+        # print(df.head())
 
-         # Create sequence with proper integer conversion
+        # Create sequence with proper integer conversion
         sequence_file_obj, created = Sequence.objects.get_or_create(
             linename=linename,
             defaults={
                 'type': int(linename[4]),
                 'pass_number': int(linename[5]),
                 'sequence_number': int(linename[6:10]),
-                'filename': filename
+                'filename': filename,
+                'preplot': preplot_line
             })
 
         # Create SequenceFileDetail instances
@@ -422,7 +499,8 @@ class LoadSequenceView(View):
             files_already_loaded = []
 
             # Check if the 'temp_sequences' directory exists, if not, create it
-            temp_sequences_dir = os.path.join(settings.MEDIA_ROOT, 'temp_sequences')
+            temp_sequences_dir = os.path.join(settings.MEDIA_ROOT,
+                                              'temp_sequences')
             if not os.path.exists(temp_sequences_dir):
                 os.makedirs(temp_sequences_dir)
 
@@ -448,7 +526,9 @@ class LoadSequenceView(View):
 
             # Schedule background tasks for files to process
             for file_path in files_to_process:
-                process_sequence_file.delay(file_path)  # Using .delay() to run as async task
+                print(file_path)
+                process_sequence_file(
+                    file_path)  # Using .delay() to run as async task
             # Prepare messages
 
             # Prepare messages
@@ -467,7 +547,7 @@ class LoadSequenceView(View):
             if not files_to_process and not files_already_loaded:
                 messages.error(request, 'No valid files were uploaded.')
 
-            return redirect('display_points')
+            return redirect('home')
 
         except ValidationError as e:
             messages.error(request, f'Validation error: {str(e)}')
@@ -475,3 +555,82 @@ class LoadSequenceView(View):
             messages.error(request, f'An unexpected error occurred: {str(e)}')
 
         return redirect('load_sequence')
+
+
+class StatsView(TemplateView):
+    template_name = 'planner/stats.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get all sequences ordered by sequence number
+        sequences = Sequence.objects.all().order_by('sequence_number')
+        line_change_times = []
+
+        for i in range(len(sequences) - 1):
+            current_seq = sequences[i]
+            next_seq = sequences[i + 1]
+
+            # Get last point of current sequence
+            last_point = AcquisitionShotPoint.objects.filter(
+                sequence=current_seq).order_by('datetime').last()
+
+            # Get first point of next sequence
+            first_point = AcquisitionShotPoint.objects.filter(
+                sequence=next_seq).order_by('datetime').first()
+
+            if last_point and first_point:
+                # Calculate time difference in minutes
+                time_diff = first_point.datetime - last_point.datetime
+                minutes = time_diff.total_seconds() / 60
+
+                line_change_times.append({
+                    'from_sequence': current_seq.sequence_number,
+                    'to_sequence': next_seq.sequence_number,
+                    'duration_minutes': round(minutes, 1)
+                })
+
+        context['line_change_times'] = json.dumps(line_change_times)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        if 'preplot_file' not in request.FILES:
+            messages.error(request, 'No file uploaded')
+            return redirect('stats')
+
+        uploaded_file = request.FILES['preplot_file']
+        try:
+            # Process the file using get_4d_preplot
+            df = get_4d_preplot(uploaded_file)
+            print(df.head())  # Debug print
+
+            # Create PreplotShotPoints objects
+            preplot_points = []
+            preplot_lines = {
+                pl.preplot: pl
+                for pl in PreplotLine.objects.all()
+            }
+            for _, row in df.iterrows():
+                preplot_id = int(row['preplot_line'])
+                preplot_line = preplot_lines.get(preplot_id)
+                if preplot_line:
+                    point = PreplotShotPoints(
+                        preplot=preplot_line,
+                        shotpoint=int(row['shotpoint']),
+                        easting=float(row['easting']),
+                        northing=float(row['northing']),
+                        latitude=float(row['latitude']),
+                        longitude=float(row['longitude']),
+                        source_number=row['source_number'])
+                    preplot_points.append(point)
+
+            # Bulk create all points
+            PreplotShotPoints.objects.bulk_create(preplot_points)
+            return JsonResponse({
+                'success':
+                True,
+                'message':
+                f'Successfully loaded {len(preplot_points)} preplot points'
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})

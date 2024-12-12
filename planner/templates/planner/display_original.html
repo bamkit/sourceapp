@@ -1,0 +1,296 @@
+{% extends 'planner/base.html' %}
+
+{% block title %}Sequence Display - OBN Planner{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+    #map {
+        height: 800px;
+        /* Increase this value to make the map taller */
+        width: 100%;
+        /* This makes the map take up the full width of its container */
+        margin-top: 20px;
+    }
+
+    .container {
+        max-width: 95%;
+        /* Increase the width of the main container if needed */
+    }
+
+    button-container {
+        text-align: center;
+        margin: 20px 0;
+        padding: 10px;
+    }
+
+    .generate-button {
+        background-color: #1a1a3a1;
+        color: #3a1a1a;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .generate-button:hover {
+        background-color: #27ae60;
+    }
+
+    .generate-button:active {
+        transform: translateY(1px);
+    }
+
+    .generate-button:disabled {
+        background-color: #95a5a6;
+        cursor: not-allowed;
+    }
+
+    .button-container {
+        margin: 20px 0;
+        text-align: center;
+    }
+
+    .button-container form {
+        display: inline-block;
+    }
+
+    .generate-button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .generate-button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Sequence Display</h2>
+<div id="map"></div>
+
+<div class="button-container">
+    <form method="POST" enctype="multipart/form-data" action="{% url 'display_points' %}">
+        {% csrf_token %}
+        <input type="file" name="preplot_file" accept=".p190">
+        <button type="submit">Generate 4D Preplot Points</button>
+        <div id="loadingIndicator" style="display: none;">
+            Processing... Please don't refresh the page
+        </div>
+    </form>
+</div>
+<script>
+    document.getElementById('preplotForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const button = document.getElementById('submitButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        // Disable button and show loading state
+        button.disabled = true;
+        loadingIndicator.style.display = 'block';
+        fetch('{% url "display_points" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();  // Controlled reload after success
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error processing file');
+            })
+            .finally(() => {
+                // Re-enable button and hide loading state
+                button.disabled = false;
+                loadingIndicator.style.display = 'none';
+            });
+    });
+    // Add warning before page refresh/leave during processing
+    window.addEventListener('beforeunload', function (e) {
+        if (document.getElementById('loadingIndicator').style.display === 'block') {
+            e.preventDefault();
+            e.returnValue = 'Processing is ongoing. Are you sure you want to leave?';
+            return e.returnValue;
+        }
+    });
+</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+<script>
+    // Parse the preplot lines data
+    var preplotLines = JSON.parse('{{ preplot_lines|safe }}');
+    var sequencePoints = JSON.parse('{{ sequence_points|safe }}');
+    var preplotPoints = JSON.parse('{{ preplot_points|safe }}');
+
+    var map = L.map('map').setView([0, 0], 2);  // Default view
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var bounds = L.latLngBounds();
+    var sequenceLines = {};
+
+    // Add preplot lines
+    preplotLines.forEach(function (line) {
+        var polyline = L.polyline([
+            [line.latitude1, line.longitude1],
+            [line.latitude2, line.longitude2]
+        ], {color: 'gray', weight: 2}).addTo(map);
+        polyline.bindPopup('Preplot Line: ' + line.linename);
+        bounds.extend(polyline.getBounds());
+    });
+    // Create a layer group for all markers
+    var markersLayer = L.layerGroup();
+
+    // Use circle marker clustering
+    var markers = L.markerClusterGroup({
+        maxClusterRadius: 30,
+        spiderfyOnMaxZoom: false,
+        disableClusteringAtZoom: 19,
+        chunkedLoading: true
+    });
+
+    // Create points more efficiently
+    preplotPoints.forEach(function (point) {
+        var marker = L.circleMarker([point.latitude, point.longitude], {
+            radius: 2,  // Reduced radius
+            fillColor: 'gray',
+            color: '#000',
+            weight: 1,
+            opacity: 0.6,  // Reduced opacity
+            fillOpacity: 0.4
+        });
+
+        // Use event delegation for popups - only create when clicked
+        marker.on('click', function () {
+            this.bindPopup(`
+                Line: ${point.preplot}<br>
+                Shot Point: ${point.shotpoint}<br>
+                Source Number: ${point.source_number || 'N/A'}<br>
+                Coordinates: ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}
+            `).openPopup();
+        });
+
+        markers.addLayer(marker);
+    });
+
+    // Add the cluster group to the map
+    map.addLayer(markers);
+
+    // Add zoom level control for point visibility
+    map.on('zoomend', function () {
+        var currentZoom = map.getZoom();
+        if (currentZoom < 12) {  // Adjust this threshold as needed
+            map.removeLayer(markers);
+        } else {
+            if (!map.hasLayer(markers)) {
+                map.addLayer(markers);
+            }
+        }
+    });
+
+    // Add sequence points
+    sequencePoints.forEach(function (point) {
+        var circleMarker = L.circleMarker([point.lat, point.lon], {
+            radius: 3,
+            fillColor: point.point_type === 'First' ? '#ff7800' : '#00ff00',
+            color: '#000',
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+        }).addTo(map);
+
+        circleMarker.bindPopup('Sequence: ' + point.sequence_name +
+            '<br>Type: ' + point.point_type +
+            '<br>SP: ' + point.sp +
+            '<br>Depth: ' + point.depth);
+        bounds.extend(circleMarker.getLatLng());
+
+        // Store points for drawing lines
+        if (!sequenceLines[point.sequence_name]) {
+            sequenceLines[point.sequence_name] = [];
+        }
+        sequenceLines[point.sequence_name].push({
+            latlng: [point.lat, point.lon],
+            sp: point.sp
+        });
+    });
+
+    // Draw lines between first and last points of each sequence
+    for (var sequenceName in sequenceLines) {
+        if (sequenceLines.hasOwnProperty(sequenceName)) {
+            var points = sequenceLines[sequenceName];
+            if (points.length === 2) {
+                var startPoint = points[0];
+                var endPoint = points[1];
+                var isIncreasing = parseInt(endPoint.sp) > parseInt(startPoint.sp);
+                var lineColor = isIncreasing ? 'blue' : 'green';
+
+                (function (color) {
+                    var polyline = L.polyline([startPoint.latlng, endPoint.latlng], {
+                        color: color,
+                        weight: 3
+                    }).addTo(map);
+
+                    // Add tooltip to the polyline
+                    polyline.bindTooltip(sequenceName, {
+                        permanent: false,
+                        direction: 'auto',
+                        opacity: 0.7,
+                        className: 'sequence-tooltip'
+                    });
+
+                    // Change line color on hover
+                    polyline.on('mouseover', function (e) {
+                        this.setStyle({
+                            color: 'red',
+                            weight: 5
+                        });
+                    });
+
+                    polyline.on('mouseout', function (e) {
+                        this.setStyle({
+                            color: color,
+                            weight: 3
+                        });
+                    });
+                })(lineColor);
+            }
+        }
+    }
+
+    // Fit map to bounds
+    if (!bounds.isValid()) {
+        map.setView([0, 0], 2);  // Default view if no valid bounds
+    } else {
+        map.fitBounds(bounds);
+    }
+
+    // Debug: Log the preplot lines data
+    console.log('Preplot Lines:', preplotLines);
+</script>
+{% endblock %}

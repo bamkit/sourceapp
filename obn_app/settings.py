@@ -33,12 +33,14 @@ ALLOWED_HOSTS = [
     '.replit.app',
     '.replit.dev',
     '68453f72-e598-43ea-87bb-239bb8cabf15-00-15ndtiia6tmja.worf.replit.dev',
+    'ebabe51c-5601-4e67-8631-765e13ddac5e-00-2qdzjbwphcl84.janeway.replit.dev',
     'localhost',
     '127.0.0.1',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     'https://68453f72-e598-43ea-87bb-239bb8cabf15-00-15ndtiia6tmja.worf.replit.dev',
+    'https://ebabe51c-5601-4e67-8631-765e13ddac5e-00-2qdzjbwphcl84.janeway.replit.dev'
     # Add other trusted origins if needed
 ]
 # Application definition
@@ -51,6 +53,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'planner',
+    'django_celery_results',
 ]
 
 MIDDLEWARE = [
@@ -146,17 +149,26 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
 
 # Media files (uploads)
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # File storage
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Celery Configuration
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# CELERY_BROKER_URL = 'redis://localhost:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# Celery Configuration
+CELERY_BROKER_URL = 'memory://'
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 50  # Restart worker after 50 tasks
+
+# # Additional required settings for SQLite broker
+# CELERY_ACCEPT_CONTENT = ['json']
+# CELERY_TASK_SERIALIZER = 'json'
+# CELERY_RESULT_SERIALIZER = 'json'

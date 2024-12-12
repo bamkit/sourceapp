@@ -1,0 +1,163 @@
+{% extends 'planner/base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="chart-container">
+        <canvas id="lineChangeChart"></canvas>
+    </div>
+    <div class="stats-container">
+        <div class="stat-box">
+            <h3>Average Line Change Time</h3>
+            <p id="avgChangeTime">-</p>
+        </div>
+        <div class="stat-box">
+            <h3>Longest Line Change</h3>
+            <p id="maxChangeTime">-</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        height: 400px;
+        margin: 20px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        /* Semi-transparent white */
+        border-radius: 8px;
+    }
+
+    .stats-container {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 20px;
+    }
+
+    .stat-box {
+        background: rgba(255, 255, 255, 0.1);
+        /* Semi-transparent white */
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        min-width: 200px;
+    }
+
+    .stat-box h3 {
+        color: #ffffff;
+        /* White text */
+        margin-bottom: 10px;
+    }
+
+    .stat-box p {
+        color: #4CAF50;
+        /* Bright green for better contrast */
+        font-size: 1.4em;
+        font-weight: bold;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Get data from Django template
+    const lineChangeTimes = {{line_change_times| safe }};
+
+    // Prepare data for Chart.js
+    const labels = lineChangeTimes.map(change =>
+        `${change.from_sequence} → ${change.to_sequence}`
+    );
+    const data = lineChangeTimes.map(change => change.duration_minutes);
+    const average = data.reduce((a, b) => a + b, 0) / data.length;
+
+    // Create the chart
+    const ctx = document.getElementById('lineChangeChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Line Change Duration (minutes)',
+                    data: data,
+                    backgroundColor: 'rgba(255, 215, 0, 0.8)',
+                    borderColor: 'rgb(255, 215, 0)',
+                    borderWidth: 1
+            },
+                {
+                    label: 'Average',
+                    data: Array(labels.length).fill(average),  // Create array of same length as data
+                    type: 'line',
+                    borderColor: 'rgba(255, 99, 132, 1)',  // Bright pink
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,  // Hide points
+                    borderDash: [5, 5]  // Dashed line
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Line Change Times Between Sequences',
+                    color: '#ffffff'  /* White text */
+                },
+                legend: {
+                    labels: {
+                        color: '#ffffff'  /* White text */
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            if (context.dataset.label === 'Average') {
+                                return `Average: ${average.toFixed(1)} minutes`;
+                            }
+                            return `Duration: ${context.raw} minutes`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'  /* Lighter grid lines */
+                    },
+                    ticks: {
+                        color: '#ffffff'  /* White text */
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'  /* Lighter grid lines */
+                    },
+                    ticks: {
+                        color: '#ffffff'  /* White text */
+                    },
+                    min: 0,
+                    max: Math.ceil(Math.max(...data) * 1.1), // 10% padding
+                    suggestedMax: Math.ceil(Math.max(...data) * 1.1)
+                }
+            }
+        }
+    });
+
+    // Calculate and display statistics
+    if (data.length > 0) {
+        const avg = data.reduce((a, b) => a + b, 0) / data.length;
+        const max = Math.max(...data);
+
+        document.getElementById('avgChangeTime').textContent =
+            `${avg.toFixed(1)} minutes`;
+        document.getElementById('maxChangeTime').textContent =
+            `${max.toFixed(1)} minutes`;
+    }
+</script>
+{% endblock %}

@@ -3,6 +3,8 @@ from pyproj import Proj, Transformer
 import math
 import numpy as np
 import re
+from planner.models import Sequence, PreplotLine
+from django.db.models import F
 
 
 def get_preplot_coordinates(preplot_file):
@@ -208,7 +210,7 @@ def srecords_to_df(srec):
         ('latin1', 'strict'),
         ('ascii', 'replace'),
         ('cp1252', 'replace')  # Windows-1252 encoding
-        ]:
+    ]:
         encoding, errors = encoding_attempt
         flines = try_decode(srec, encoding, errors)
         if flines is not None:
@@ -287,7 +289,6 @@ def get_4d_preplot(fourd_preplot_file):
         with open(fourd_preplot_file, 'r') as f:
             lines = f.readlines()
 
-
     # Initialize an empty list to hold the parsed data
     data_list = []
 
@@ -343,11 +344,13 @@ def get_4d_preplot(fourd_preplot_file):
 
     # Convert the list of data dictionaries to a pandas DataFrame
     df = pd.DataFrame(data_list)
-    
-    # Filter for source_number == '2'
-    df = df[df['source_number'] == '2']
 
     return df
+
+    # Filter for source_number == '2'
+    # df = df[df['source_number'] == '2']
+
+    # return df
 
 
 def get_4d_preplot_endpoints(fourd_preplot_df):
@@ -406,6 +409,39 @@ def get_4d_preplot_endpoints(fourd_preplot_df):
     # Create a new DataFrame from the processed data
     result_df = pd.DataFrame(processed_data)
     return result_df
+
+# Function to connect sequences to preplot in the database
+def connect_sequences_to_preplot():
+    # Get all sequences
+    sequences = Sequence.objects.filter(preplot__isnull=True)
+
+    updates = 0
+    errors = 0
+
+    for sequence in sequences:
+        try:
+            # Extract preplot number from linename
+            # Assuming linename format starts with 4 digits for preplot
+            preplot_number = int(sequence.linename[0:4])
+
+            # Find corresponding PreplotLine
+            try:
+                preplot = PreplotLine.objects.get(preplot=preplot_number)
+                sequence.preplot = preplot
+                sequence.save()
+                updates += 1
+                print(f"Connected sequence {sequence.linename} to preplot {preplot_number}")
+            except PreplotLine.DoesNotExist:
+                print(f"No PreplotLine found for preplot number {preplot_number} (sequence: {sequence.linename})")
+                errors += 1
+
+        except (ValueError, IndexError) as e:
+            print(f"Error processing sequence {sequence.linename}: {str(e)}")
+            errors += 1
+
+    print(f"\nCompleted with {updates} updates and {errors} errors")
+
+
 
 if __name__ == "__main__":
 

@@ -22,6 +22,7 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            margin: 0;
         }
         .content-wrapper {
             flex: 1 0 auto;
@@ -32,7 +33,9 @@
             width: 80%;
             margin: 0 auto;
             padding: 20px;
-            flex-grow: 1; /* Ensures this stretches to push footer down */
+            flex: 1 0 auto; /* Changed from flex-grow to flex */
+            display: flex;
+            flex-direction: column;
         }
         header {
             background-color: var(--light-green);
@@ -58,6 +61,7 @@
             text-decoration: none;
         }
         main {
+            flex: 1 0 auto;
             padding: 20px 0;
         }
         footer {
@@ -65,14 +69,9 @@
             color: var(--text-color);
             text-align: center;
             padding: 10px 0;
+            margin-top: auto; /* Added this */
             flex-shrink: 0;
-        }
-        .messages {
-            list-style-type: none;
-            padding: 10px;
-            margin: 10px 0;
-            background-color: var(--light-green);
-            border-radius: 5px;
+            width: 100%;
         }
         .messages li {
             margin: 5px 0;
@@ -88,7 +87,7 @@
         <nav>
             <ul>
                 <li><a href="{% url 'home' %}">Home</a></li>
-                <li><a href="{% url 'display_points' %}">Display Points</a></li>
+                <li><a href="{% url 'stats' %}">Stats</a></li>
                 <li><a href="{% url 'load_preplot' %}">Load Preplot</a></li>
                 <li><a href="{% url 'load_sequence' %}">Load Sequence</a></li>
             </ul>

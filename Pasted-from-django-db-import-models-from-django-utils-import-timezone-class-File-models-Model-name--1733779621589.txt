@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils import timezone
-from django.db.models import Count
 
 class File(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -17,10 +16,8 @@ class Polygon(models.Model):
         return self.name
     
 class PreplotLine(models.Model):
-    loaded = models.BooleanField(default=False, db_index=True)
-    completed = models.BooleanField(default=False, db_index=True)
-    force_completed = models.BooleanField(default=False, db_index=True)
-    preplot = models.IntegerField(db_index=True)
+    loaded = models.BooleanField(default=False)
+    preplot = models.IntegerField()
     shotpoint1 = models.IntegerField(default=0)
     eastings1 = models.FloatField()
     northings1 = models.FloatField()
@@ -31,26 +28,6 @@ class PreplotLine(models.Model):
     northings2 = models.FloatField()
     latitude2 = models.FloatField()
     longitude2 = models.FloatField()
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['preplot', 'loaded']),  # Composite index for common queries
-            models.Index(fields=['preplot', 'completed']),
-        ]
-        ordering = ['preplot']  # Default ordering
-
-    def calculate_completion_status(self):
-        # Get total preplot points
-        total_preplot_points = self.ppsp.count()
-        if total_preplot_points == 0:
-            return False
-        # Get count of acquired points
-        acquired_points = 0
-        for sequence in self.sequence.all():
-            acquired_points += sequence.details.count()
-        # Calculate completion percentage
-        completion_percentage = (acquired_points / total_preplot_points) * 100
-        return completion_percentage >= 95 or self.force_completed
 
     def __str__(self):
         return f"Line {self.preplot}: {self.shotpoint1} - {self.shotpoint2}"

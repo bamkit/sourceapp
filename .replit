@@ -1,4 +1,4 @@
-modules = ["python-3.12", "c-clang14", "web", "nodejs-20"]
+modules = ["python-3.12", "c-clang14", "web", "cpp-clang14"]
 run = "python manage.py runserver 0.0.0.0:8000"
 
 [nix]
