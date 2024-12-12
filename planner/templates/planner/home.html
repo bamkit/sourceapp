@@ -130,8 +130,13 @@
         <div class="chart-container">
             <canvas id="progressChart"></canvas>
         </div>
-        <div class="chart-container">
-            <canvas id="completionChart"></canvas>
+        <div class="chart-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <canvas id="completedLinesChart"></canvas>
+            </div>
+            <div>
+                <canvas id="uncompletedLinesChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -146,10 +151,10 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- This will be populated by JavaScript -->
+                
             </tbody>
         </table>
-    </div>
+    </div
 </div>
 {% endblock %}
 
@@ -390,16 +395,18 @@
     }
     });
 
+    });
+
     // Initialize charts
-    const progressCtx = document.getElementById('progressChart').getContext('2d');
-    const completionCtx = document.getElementById('completionChart').getContext('2d');
+    document.addEventListener('DOMContentLoaded', function() {
+        const progressCtx = document.getElementById('progressChart').getContext('2d');
+        
+        // Get completed and uncompleted lines count from preplotLines array
+        const completedCount = preplotLines.filter(line => line.completed).length;
+        const uncompletedCount = preplotLines.length - completedCount;
 
-    // Get completed and uncompleted lines count from preplotLines array
-    const completedCount = preplotLines.filter(line => line.completed).length;
-    const uncompletedCount = preplotLines.length - completedCount;
-
-    // Progress Pie Chart
-    new Chart(progressCtx, {
+        // Progress Pie Chart
+        new Chart(progressCtx, {
         type: 'pie',
         data: {
             labels: ['Completed Lines', 'Uncompleted Lines'],
@@ -413,7 +420,7 @@
             plugins: {
                 title: {
                     display: true,
-                    text: 'Line Completion Status',
+                    text: 'Project Completion Status',
                     color: '#ecf0f1'
                 },
                 legend: {
