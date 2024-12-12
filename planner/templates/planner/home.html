@@ -103,6 +103,35 @@
         font-size: 14px;
     }
 
+    .completion-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        background: #1a2634;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .completion-column {
+        text-align: center;
+        padding: 15px;
+        background: #2c3e50;
+        border-radius: 8px;
+    }
+
+    .completion-column h3 {
+        margin: 0 0 10px 0;
+        color: #ecf0f1;
+        font-size: 16px;
+    }
+
+    .completion-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #3498db;
+    }
+
     .legend {
         background-color: white;
         box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
@@ -130,25 +159,16 @@
         <div class="chart-container">
             <canvas id="progressChart"></canvas>
         </div>
-        <div class="chart-container">
-            <canvas id="completionChart"></canvas>
+        <div class="completion-stats">
+            <div class="completion-column">
+                <h3>Completed Lines</h3>
+                <div class="completion-value" id="completedLines">0</div>
+            </div>
+            <div class="completion-column">
+                <h3>Uncompleted Lines</h3>
+                <div class="completion-value" id="uncompletedLines">0</div>
+            </div>
         </div>
-    </div>
-
-    <div class="table-section">
-        <h3>Loaded Preplot Lines</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Source Line</th>
-                    <th>Shotpoint 1</th>
-                    <th>Shotpoint 2</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- This will be populated by JavaScript -->
-            </tbody>
-        </table>
     </div>
 </div>
 {% endblock %}
@@ -397,6 +417,10 @@
     // Get completed and uncompleted lines count from preplotLines array
     const completedCount = preplotLines.filter(line => line.completed).length;
     const uncompletedCount = preplotLines.length - completedCount;
+
+    // Update completion stats
+    document.getElementById('completedLines').textContent = completedCount;
+    document.getElementById('uncompletedLines').textContent = uncompletedCount;
 
     // Progress Pie Chart
     new Chart(progressCtx, {
