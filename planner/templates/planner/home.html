@@ -386,15 +386,18 @@
             return 'N/A';
         }
     }
-
+    });
     // Add charts
     const progressCtx = document.getElementById('progressChart').getContext('2d');
     const completionCtx = document.getElementById('completionChart').getContext('2d');
 
-    // Calculate completion stats
+    const completedLines = sequencePoints.length / 2; // Since we have start and end points
+    const remainingLines = totalLines - completedLines;
+
+    // Get completed lines count from preplotLines array
     const completedCount = preplotLines.filter(line => line.completed).length;
     const uncompletedCount = preplotLines.length - completedCount;
-
+    
     // Progress Pie Chart
     new Chart(progressCtx, {
         type: 'pie',
