@@ -30,6 +30,8 @@ from datetime import timedelta
 class HomeView(View):
 
     def get(self, request):
+        import matplotlib
+        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         import io
         import base64
