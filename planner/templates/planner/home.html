@@ -11,8 +11,10 @@
         grid-template-columns: repeat(12, 1fr);
         gap: 20px;
         padding: 20px;
-        min-height: calc(100vh - 200px); /* Changed from height to min-height */
-        margin-bottom: 20px; /* Add some space before footer */
+        min-height: calc(100vh - 200px);
+        /* Changed from height to min-height */
+        margin-bottom: 20px;
+        /* Add some space before footer */
     }
 
     .map-section {
@@ -100,10 +102,10 @@
         color: #ecf0f1;
         font-size: 14px;
     }
-    
+
     .legend {
         background-color: white;
-        box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
         margin-bottom: 10px !important;
     }
 
@@ -156,15 +158,15 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var preplotLines = JSON.parse('{{ preplot_lines|escapejs }}');
-        var sequencePoints = {{sequence_points| safe}};
-    
-        // Calculate completed and remaining lines
-        const totalLines = preplotLines.length;
+        var sequencePoints = {{sequence_points|safe}};
+  
+    // Calculate completed and remaining lines
+    const totalLines = preplotLines.length;
 
-        // Update total lines stats
-        document.getElementById('totalLines').textContent = totalLines;
+    // Update total lines stats
+    document.getElementById('totalLines').textContent = totalLines;
 
-    
+
     // Original map code remains the same...
     var map = L.map('map').setView([0, 0], 2);  // Default view
 
@@ -190,7 +192,7 @@
         div.innerHTML = '<h4 style="margin: 0 0 10px 0; color: black;">Sequence Lines</h4>';
 
         // Add legend items
-        div.innerHTML += 
+        div.innerHTML +=
             '<div style="margin-bottom: 5px;">' +
             '<div style="display: inline-block; width: 20px; height: 3px; background: blue; margin-right: 8px;"></div>' +
             '<span style="color: black;">Increasing SP</span></div><br>' +
@@ -221,7 +223,7 @@
         div.innerHTML = '<h4 style="margin: 0 0 10px 0; color: black;">Sequence Points</h4>';
 
         // Add legend items
-        div.innerHTML += 
+        div.innerHTML +=
             '<div style="margin-bottom: 5px;">' +
             '<div style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ff7800; margin-right: 8px;"></div>' +
             '<span style="color: black;">First Point</span></div><br>' +
@@ -303,49 +305,49 @@
         });
     });
 
-        // Draw sequence lines
-        for (var sequenceName in sequenceLines) {
-            if (sequenceLines.hasOwnProperty(sequenceName)) {
-                var points = sequenceLines[sequenceName];
-                if (points.length === 2) {
-                    var startPoint = points[0];
-                    var endPoint = points[1];
-                    var isIncreasing = parseInt(endPoint.sp) > parseInt(startPoint.sp);
-                    var lineColor = isIncreasing ? 'blue' : 'green';
+    // Draw sequence lines
+    for (var sequenceName in sequenceLines) {
+        if (sequenceLines.hasOwnProperty(sequenceName)) {
+            var points = sequenceLines[sequenceName];
+            if (points.length === 2) {
+                var startPoint = points[0];
+                var endPoint = points[1];
+                var isIncreasing = parseInt(endPoint.sp) > parseInt(startPoint.sp);
+                var lineColor = isIncreasing ? 'blue' : 'green';
 
-                    (function(color) {
-                        var polyline = L.polyline([startPoint.latlng, endPoint.latlng], {
-                            color: color, 
+                (function (color) {
+                    var polyline = L.polyline([startPoint.latlng, endPoint.latlng], {
+                        color: color,
+                        weight: 3
+                    }).addTo(map);
+
+                    polyline.bindTooltip(sequenceName, {
+                        permanent: false,
+                        direction: 'auto',
+                        opacity: 0.7,
+                        className: 'sequence-tooltip'
+                    });
+
+                    // Change line color on hover
+                    polyline.on('mouseover', function (e) {
+                        this.setStyle({
+                            color: 'red',
+                            weight: 5
+                        });
+                    });
+
+                    polyline.on('mouseout', function (e) {
+                        this.setStyle({
+                            color: color,  // Use the original color stored in closure
                             weight: 3
-                        }).addTo(map);
-
-                        polyline.bindTooltip(sequenceName, {
-                            permanent: false,
-                            direction: 'auto',
-                            opacity: 0.7,
-                            className: 'sequence-tooltip'
                         });
+                    });
 
-                        // Change line color on hover
-                        polyline.on('mouseover', function (e) {
-                            this.setStyle({
-                                color: 'red',
-                                weight: 5
-                            });
-                        });
-
-                        polyline.on('mouseout', function (e) {
-                            this.setStyle({
-                                color: color,  // Use the original color stored in closure
-                                weight: 3
-                            });
-                        });
-
-                        bounds.extend(polyline.getBounds());
-                    })(lineColor);  // Pass the original color to the closure
-                }
+                    bounds.extend(polyline.getBounds());
+                })(lineColor);  // Pass the original color to the closure
             }
         }
+    }
 
     // Fit map to bounds
     if (!bounds.isValid()) {
@@ -387,17 +389,17 @@
         }
     }
     });
-    // Add charts
-    const progressCtx = document.getElementById('progressChart').getContext('2d');
-    const completionCtx = document.getElementById('completionChart').getContext('2d');
+    document.addEventListener('DOMContentLoaded', function() {
+        const progressCtx = document.getElementById('progressChart').getContext('2d');
+        const completionCtx = document.getElementById('completionChart').getContext('2d');
 
-    const completedLines = sequencePoints.length / 2; // Since we have start and end points
-    const remainingLines = totalLines - completedLines;
+        const completedLines = sequencePoints.length / 2; // Since we have start and end points
+        const remainingLines = totalLines - completedLines;
 
     // Get completed lines count from preplotLines array
     const completedCount = preplotLines.filter(line => line.completed).length;
     const uncompletedCount = preplotLines.length - completedCount;
-    
+
     // Progress Pie Chart
     new Chart(progressCtx, {
         type: 'pie',
@@ -423,7 +425,7 @@
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             const value = context.raw;
                             const percentage = ((value / preplotLines.length) * 100).toFixed(1);
                             return `${context.label}: ${value} (${percentage}%)`;
@@ -432,6 +434,7 @@
                 }
             }
         }
+    });
     });
 
     // Completion Timeline Chart
@@ -478,8 +481,10 @@
                 }
             }
         }
-
-        // Original table and map interaction code remains the same...
     });
+    });
+
+
+
 </script>
 {% endblock %}
