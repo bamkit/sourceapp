@@ -182,12 +182,52 @@
     document.addEventListener('DOMContentLoaded', function () {
     // Calculate completed and remaining lines
     const totalLines = preplotLines.length;
+    const completedCount = preplotLines.filter(line => line.completed).length;
+    const uncompletedCount = preplotLines.length - completedCount;
 
-    // Update total lines stats
+    // Update stats
     document.getElementById('totalLines').textContent = totalLines;
+    document.getElementById('completedLines').textContent = completedCount;
+    document.getElementById('uncompletedLines').textContent = uncompletedCount;
 
+    // Initialize the map
+    var map = L.map('map').setView([0, 0], 2);
 
-    // Original map code remains the same...
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Initialize charts
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+
+    // Progress Pie Chart
+    new Chart(progressCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Completed Lines', 'Uncompleted Lines'],
+            datasets: [{
+                data: [completedCount, uncompletedCount],
+                backgroundColor: ['#2ecc71', '#e74c3c']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Line Completion Status',
+                    color: '#ecf0f1'
+                },
+                legend: {
+                    labels: {
+                        color: '#ecf0f1'
+                    }
+                }
+            }
+        }
+    });
+
+    // Original map code continues...
     var map = L.map('map').setView([0, 0], 2);  // Default view
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
