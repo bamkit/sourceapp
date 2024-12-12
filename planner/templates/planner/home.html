@@ -394,13 +394,17 @@
     const completedLines = sequencePoints.length / 2; // Since we have start and end points
     const remainingLines = totalLines - completedLines;
 
+    // Get completed lines count from preplotLines array
+    const completedCount = preplotLines.filter(line => line.completed).length;
+    const uncompletedCount = preplotLines.length - completedCount;
+    
     // Progress Pie Chart
     new Chart(progressCtx, {
         type: 'pie',
         data: {
-            labels: ['Completed', 'Remaining'],
+            labels: ['Completed Lines', 'Uncompleted Lines'],
             datasets: [{
-                data: [completedLines, remainingLines],
+                data: [completedCount, uncompletedCount],
                 backgroundColor: ['#2ecc71', '#e74c3c']
             }]
         },
@@ -415,6 +419,15 @@
                 legend: {
                     labels: {
                         color: '#ecf0f1'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const percentage = ((value / preplotLines.length) * 100).toFixed(1);
+                            return `${context.label}: ${value} (${percentage}%)`;
+                        }
                     }
                 }
             }

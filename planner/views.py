@@ -71,7 +71,8 @@ class HomeView(View):
             'shotpoint1': line.shotpoint1,
             'latitude2': line.latitude2,
             'longitude2': line.longitude2,
-            'shotpoint2': line.shotpoint2
+            'shotpoint2': line.shotpoint2,
+            'completed': line.completed or line.force_completed
         } for line in lines]
 
         context = {
