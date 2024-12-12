@@ -156,10 +156,10 @@
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
+    var preplotLines = JSON.parse('{{ preplot_lines|escapejs }}');
+    var sequencePoints = {{sequence_points|safe}};
+    
     document.addEventListener('DOMContentLoaded', function () {
-        var preplotLines = JSON.parse('{{ preplot_lines|escapejs }}');
-        var sequencePoints = {{sequence_points|safe}};
-  
     // Calculate completed and remaining lines
     const totalLines = preplotLines.length;
 
@@ -389,12 +389,12 @@
         }
     }
     });
-    document.addEventListener('DOMContentLoaded', function() {
-        const progressCtx = document.getElementById('progressChart').getContext('2d');
-        const completionCtx = document.getElementById('completionChart').getContext('2d');
+    // Initialize charts
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+    const completionCtx = document.getElementById('completionChart').getContext('2d');
 
-        const completedLines = sequencePoints.length / 2; // Since we have start and end points
-        const remainingLines = totalLines - completedLines;
+    const completedLines = sequencePoints.length / 2; // Since we have start and end points
+    const remainingLines = totalLines - completedLines;
 
     // Get completed lines count from preplotLines array
     const completedCount = preplotLines.filter(line => line.completed).length;
