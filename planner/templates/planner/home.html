@@ -176,17 +176,31 @@
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
-    
     var preplotLines = JSON.parse('{{ preplot_lines|escapejs }}');
     var sequencePoints = {{sequence_points|safe}};
     
     document.addEventListener('DOMContentLoaded', function () {
+    // Calculate completed and remaining lines
     const totalLines = preplotLines.length;
     const completedCount = preplotLines.filter(line => line.completed).length;
     const uncompletedCount = preplotLines.length - completedCount;
 
-    // Initialize the pie chart
+    // Update stats
+    document.getElementById('totalLines').textContent = totalLines;
+    document.getElementById('completedLines').textContent = completedCount;
+    document.getElementById('uncompletedLines').textContent = uncompletedCount;
+
+    // Initialize the map
+    var map = L.map('map').setView([0, 0], 2);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Initialize charts
     const progressCtx = document.getElementById('progressChart').getContext('2d');
+
+    // Progress Pie Chart
     new Chart(progressCtx, {
         type: 'pie',
         data: {
@@ -213,13 +227,8 @@
         }
     });
 
-    // Update stats
-    document.getElementById('totalLines').textContent = totalLines;
-    document.getElementById('completedLines').textContent = completedCount;
-    document.getElementById('uncompletedLines').textContent = uncompletedCount;
-
-    // Initialize map
-    var map = L.map('map').setView([0, 0], 2);
+    // Original map code continues...
+    var map = L.map('map').setView([0, 0], 2);  // Default view
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
@@ -441,9 +450,20 @@
     }
     });
 
+    // Initialize charts
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+    const completionCtx = document.getElementById('completionChart').getContext('2d');
+
+    // Get completed and uncompleted lines count from preplotLines array
+    const completedCount = preplotLines.filter(line => line.completed).length;
+    const uncompletedCount = preplotLines.length - completedCount;
+
     // Update completion stats
     document.getElementById('completedLines').textContent = completedCount;
     document.getElementById('uncompletedLines').textContent = uncompletedCount;
+
+    // Progress Pie Chart
+    new Chart(progressCtx, {
         type: 'pie',
         data: {
             labels: ['Completed Lines', 'Uncompleted Lines'],
