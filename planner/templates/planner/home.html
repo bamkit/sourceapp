@@ -182,10 +182,36 @@
     
     document.addEventListener('DOMContentLoaded', function () {
     const totalLines = preplotLines.length;
-
-    // Calculate completed and uncompleted counts
     const completedCount = preplotLines.filter(line => line.completed).length;
     const uncompletedCount = preplotLines.length - completedCount;
+
+    // Initialize the pie chart
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+    new Chart(progressCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Completed Lines', 'Uncompleted Lines'],
+            datasets: [{
+                data: [completedCount, uncompletedCount],
+                backgroundColor: ['#2ecc71', '#e74c3c']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Line Completion Status',
+                    color: '#ecf0f1'
+                },
+                legend: {
+                    labels: {
+                        color: '#ecf0f1'
+                    }
+                }
+            }
+        }
+    });
 
     // Update stats
     document.getElementById('totalLines').textContent = totalLines;
@@ -415,20 +441,9 @@
     }
     });
 
-    // Initialize charts
-    const progressCtx = document.getElementById('progressChart').getContext('2d');
-    const completionCtx = document.getElementById('completionChart').getContext('2d');
-
-    // Get completed and uncompleted lines count from preplotLines array
-    const completedCount = preplotLines.filter(line => line.completed).length;
-    const uncompletedCount = preplotLines.length - completedCount;
-
     // Update completion stats
     document.getElementById('completedLines').textContent = completedCount;
     document.getElementById('uncompletedLines').textContent = uncompletedCount;
-
-    // Progress Pie Chart
-    new Chart(progressCtx, {
         type: 'pie',
         data: {
             labels: ['Completed Lines', 'Uncompleted Lines'],
