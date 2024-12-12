@@ -185,6 +185,11 @@
     const completedCount = preplotLines.filter(line => line.completed).length;
     const uncompletedCount = preplotLines.length - completedCount;
 
+    // Update stats
+    document.getElementById('totalLines').textContent = totalLines;
+    document.getElementById('completedLines').textContent = completedCount;
+    document.getElementById('uncompletedLines').textContent = uncompletedCount;
+
     // Initialize the pie chart
     const progressCtx = document.getElementById('progressChart').getContext('2d');
     new Chart(progressCtx, {
@@ -441,12 +446,7 @@
     }
     });
 
-    // Update completion stats
-    document.getElementById('completedLines').textContent = completedCount;
-    document.getElementById('uncompletedLines').textContent = uncompletedCount;
-        type: 'pie',
-        data: {
-            labels: ['Completed Lines', 'Uncompleted Lines'],
+    // Initialize maps and other features
             datasets: [{
                 data: [completedCount, uncompletedCount],
                 backgroundColor: ['#2ecc71', '#e74c3c']
