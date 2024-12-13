@@ -50,6 +50,22 @@
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
+    .charts-row {
+        grid-column: span 12;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .bar-chart-container {
+        background: #1a2634;
+        border-radius: 10px;
+        padding: 15px;
+        height: 300px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
     #map {
         height: 100%;
         width: 100%;
@@ -150,6 +166,14 @@
     <div class="map-section">
         <div id="map"></div>
     </div>
+    <div class="charts-row">
+        <div class="bar-chart-container">
+            <canvas id="dailyCompletionChart"></canvas>
+        </div>
+        <div class="bar-chart-container">
+            <canvas id="dailyShotpointsChart"></canvas>
+        </div>
+    </div>
 
     <div class="stats-section">
         <div class="stats-card">
@@ -176,10 +200,11 @@
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
     var preplotLines = JSON.parse('{{ preplot_lines|escapejs }}');
     var sequencePoints = {{sequence_points|safe}};
     
-    document.addEventListener('DOMContentLoaded', function () {
+    
     // Calculate completed and remaining lines
     const totalLines = preplotLines.length;
     const completedCount = preplotLines.filter(line => line.completed).length;
@@ -191,11 +216,11 @@
     document.getElementById('uncompletedLines').textContent = uncompletedCount;
 
     // Initialize the map
-    var map = L.map('map').setView([0, 0], 2);
+    // var map = L.map('map').setView([0, 0], 2);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    // L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    //     attribution: '© OpenStreetMap contributors'
+    // }).addTo(map);
 
     // Initialize charts
     const progressCtx = document.getElementById('progressChart').getContext('2d');
@@ -297,18 +322,10 @@
     pointLegend.addTo(map);
 
     // Add preplot lines
+    
     var preplotLayerGroup = L.layerGroup().addTo(map);
+    
     preplotLines.forEach(function (line, index) {
-        // Create table row
-        var row = document.createElement('tr');
-        row.innerHTML = `
-                <td class="line-data">${line.preplot}</td>
-                <td class="line-data">${line.shotpoint1 || 'N/A'}</td>
-                <td class="line-data">${line.shotpoint2 || 'N/A'}</td>
-            `;
-        row.setAttribute('data-line-index', index);
-        tableBody.appendChild(row);
-
         var polyline = L.polyline([
             [line.latitude1, line.longitude1],
             [line.latitude2, line.longitude2]
@@ -321,22 +338,22 @@
         polyline.bindPopup('Preplot Line: ' + line.linename);
         bounds.extend(polyline.getBounds());
 
-        // Add hover effects
-        polyline.on('mouseover', function () {
-            highlightLine(polyline, row);
-        });
+        // // Add hover effects
+        // polyline.on('mouseover', function () {
+        //     highlightLine(polyline, row);
+        // });
 
-        polyline.on('mouseout', function () {
-            resetHighlight(polyline, row);
-        });
+        // polyline.on('mouseout', function () {
+        //     resetHighlight(polyline, row);
+        // });
 
-        row.addEventListener('mouseover', function () {
-            highlightLine(polyline, row);
-        });
+        // row.addEventListener('mouseover', function () {
+        //     highlightLine(polyline, row);
+        // });
 
-        row.addEventListener('mouseout', function () {
-            resetHighlight(polyline, row);
-        });
+        // row.addEventListener('mouseout', function () {
+        //     resetHighlight(polyline, row);
+        // });
     });
 
     // Add sequence points and prepare sequence lines
