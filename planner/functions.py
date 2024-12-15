@@ -2,6 +2,7 @@ import pandas as pd
 from pyproj import Proj, Transformer
 import math
 import numpy as np
+import datetime
 import re
 from planner.models import Sequence, PreplotLine
 from django.db.models import F
@@ -236,8 +237,19 @@ def srecords_to_df(srec):
             entry.append(float(line[0][47:55]))  # east
             entry.append(float(line[0][55:64]))  # north
             entry.append(float(line[0][64:70]))  # depth
-            entry.append(int(line[0][70:73]))  # jday
-            entry.append(line[0][73:79])  # time
+            # Convert Julian day and time to datetime
+            jday = int(line[0][70:73])
+            time_str = line[0][73:79]
+            year = int(line[0][79:83]) if len(line[0]) >= 83 else datetime.datetime.now().year
+            
+            # Calculate date from Julian day
+            jan1 = datetime.datetime(year, 1, 1)
+            date = jan1 + datetime.timedelta(days=jday - 1)  # -1 because Julian day starts at 1
+            time = datetime.datetime.strptime(time_str, '%H%M%S').time()
+            
+            # Combine date and time
+            dt = datetime.datetime.combine(date.date(), time)
+            entry.append(dt)  # Store complete datetime instead of separate jday/time
 
             # Convert Z coordinates to decimal degrees
             for z in [flines[k - 3], flines[k - 2], flines[k - 1]]:
