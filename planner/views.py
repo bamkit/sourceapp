@@ -34,7 +34,7 @@ class HomeView(View):
         files = File.objects.all()
         points = PreplotShotPoints.objects.all()
         polygon = Polygon.objects.first()
-        sequences = Sequence.objects.all()
+        sequences = Sequence.objects.all().order_by('sequence_number')
 
         # Fetch first and last shotpoints for each Sequence
         sequence_points = []
@@ -44,6 +44,7 @@ class HomeView(View):
             last_point = AcquisitionShotPoint.objects.filter(
                 sequence=sequence).order_by('datetime').last()
 
+
             if first_point and last_point:
                 sequence_points.extend([{
                     'lat': first_point.mean_lat,
@@ -51,6 +52,7 @@ class HomeView(View):
                     'sp': first_point.sp,
                     'depth': first_point.depth,
                     'sequence_name': sequence.linename,
+                    'date': first_point.datetime.strftime('%Y-%m-%d %H:%M:%S'),
                     'point_type': 'First'
                 }, {
                     'lat': last_point.mean_lat,
@@ -58,8 +60,36 @@ class HomeView(View):
                     'sp': last_point.sp,
                     'depth': last_point.depth,
                     'sequence_name': sequence.linename,
+                    'date': last_point.datetime.strftime('%Y-%m-%d %H:%M:%S'),
                     'point_type': 'Last'
                 }])
+
+        line_change_times = []
+
+        for i in range(len(sequences) - 1):
+            current_seq = sequences[i]
+            next_seq = sequences[i + 1]
+
+            # Get last point of current sequence
+            last_point = AcquisitionShotPoint.objects.filter(
+                sequence=current_seq).order_by('datetime').last()
+
+            # Get first point of next sequence
+            first_point = AcquisitionShotPoint.objects.filter(
+                sequence=next_seq).order_by('datetime').first()
+
+            if last_point and first_point:
+                # Calculate time difference in minutes
+                time_diff = first_point.datetime - last_point.datetime
+                minutes = time_diff.total_seconds() / 60
+
+                line_change_times.append({
+                    'from_sequence': current_seq.sequence_number,
+                    'to_sequence': next_seq.sequence_number,
+                    'duration_minutes': round(minutes, 1)
+                })
+
+        # context['line_change_times'] = json.dumps(line_change_times)
 
         # Add P190 lines data
         lines = PreplotLine.objects.all()
@@ -80,122 +110,12 @@ class HomeView(View):
             'points': points,
             'polygon': polygon,
             'preplot_lines': json.dumps(lines_data),
-            'sequence_points': json.dumps(sequence_points)
+            'sequence_points': json.dumps(sequence_points),
+            'line_change_times': json.dumps(line_change_times)
         }
         return render(request, 'planner/home.html', context)
 
 
-# OLD DISPLAY VIEW. USED TO GENERATE PREPLOT SHOTPOINTS FOR 4D PREPLOT
-# class StatsView(View):
-
-#     def get(self, request):
-#         files = File.objects.all()
-#         points = PreplotShotPoints.objects.all()
-#         polygon = Polygon.objects.first()
-#         sequences = Sequence.objects.all()
-
-#         # Fetch first and last shotpoints for each Sequence
-#         sequence_points = []
-#         for sequence in sequences:
-#             first_point = AcquisitionShotPoint.objects.filter(
-#                 sequence=sequence).order_by('datetime').first()
-#             last_point = AcquisitionShotPoint.objects.filter(
-#                 sequence=sequence).order_by('datetime').last()
-
-#             if first_point and last_point:
-#                 sequence_points.extend([{
-#                     'lat': first_point.mean_lat,
-#                     'lon': first_point.mean_lon,
-#                     'sp': first_point.sp,
-#                     'depth': first_point.depth,
-#                     'linename': sequence.linename,
-#                     'point_type': 'First'
-#                 }, {
-#                     'lat': last_point.mean_lat,
-#                     'lon': last_point.mean_lon,
-#                     'sp': last_point.sp,
-#                     'depth': last_point.depth,
-#                     'linename': sequence.linename,
-#                     'point_type': 'Last'
-#                 }])
-
-#         # Add P190 lines data
-#         lines = PreplotLine.objects.all()
-#         lines_data = [{
-#             'preplot': line.preplot,
-#             'latitude1': line.latitude1,
-#             'longitude1': line.longitude1,
-#             'latitude2': line.latitude2,
-#             'longitude2': line.longitude2
-#         } for line in lines]
-
-#         # Add preplot points to context
-#         preplot_points = PreplotShotPoints.objects.all().values(
-#             'preplot__preplot', 'shotpoint', 'latitude', 'longitude',
-#             'source_number')
-
-#         context = {
-#             'files': files,
-#             'points': points,
-#             'polygon': polygon,
-#             'preplot_lines': json.dumps(lines_data),
-#             'sequence_points': json.dumps(sequence_points),
-#             'preplot_points': json.dumps(list(preplot_points))
-#         }
-#         return render(request, 'planner/stats.html', context)
-
-#     def post(self, request):
-
-#         print("Post request received")  # Debug print
-#         print("FILES:", request.FILES)  # Debug print
-
-#         if 'preplot_file' not in request.FILES:
-#             return JsonResponse({
-#                 'success': False,
-#                 'error': 'No file uploaded'
-#             })
-
-#         uploaded_file = request.FILES['preplot_file']
-
-#         try:
-#             # Process the file using get_4d_preplot
-#             df = get_4d_preplot(uploaded_file)
-#             print(df.head())
-
-#             # Create PreplotShotPoints objects
-#             preplot_points = []
-#             preplot_lines = {
-#                 pl.preplot: pl
-#                 for pl in PreplotLine.objects.all()
-#             }
-
-#             for _, row in df.iterrows():
-#                 preplot_id = int(row['preplot_line'])
-#                 preplot_line = preplot_lines.get(preplot_id)
-
-#                 if preplot_line:
-#                     point = PreplotShotPoints(
-#                         preplot=preplot_line,
-#                         shotpoint=int(row['shotpoint']),
-#                         easting=float(row['easting']),
-#                         northing=float(row['northing']),
-#                         latitude=float(row['latitude']),
-#                         longitude=float(row['longitude']),
-#                         source_number=row['source_number'])
-#                     preplot_points.append(point)
-#             # Bulk create all points
-#             PreplotShotPoints.objects.bulk_create(preplot_points)
-
-#             return JsonResponse({
-#                 'success': True,
-#                 'message': f'Successfully loaded {len(preplot_points)} preplot points'
-#             })
-
-#         except Exception as e:
-#             return JsonResponse({
-#                 'success': False,
-#                 'error': str(e)
-#             })
 
 
 class UploadPolygonView(View):
@@ -418,9 +338,9 @@ def process_sequence_file(file_path):
             return
 
         # Convert jday and time to a single datetime column
-        df['datetime'] = pd.to_datetime(df['jday'].astype(str) + ' ' +
-                                        df['time'],
-                                        format='%j %H%M%S')
+        # df['datetime'] = pd.to_datetime(df['jday'].astype(str) + ' ' +
+        #                                 df['time'],
+        #                                 format='%j %H%M%S')
 
         # Drop the original jday and time columns
         df = df.drop(['jday', 'time'], axis=1)
@@ -448,7 +368,7 @@ def process_sequence_file(file_path):
                 east=row['east'],
                 north=row['north'],
                 depth=row['depth'],
-                datetime=row['datetime'],
+                datetime=row['dt'],
                 zlat1=row['zlat1'],
                 zlon1=row['zlon1'],
                 zlat2=row['zlat2'],

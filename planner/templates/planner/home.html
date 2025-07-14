@@ -5,13 +5,14 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
     .dashboard {
         display: grid;
         grid-template-columns: repeat(12, 1fr);
         gap: 20px;
         padding: 20px;
-        min-height: calc(100vh - 900px);
+        min-height: calc(100vh - 200px);
         /* Changed from height to min-height */
         margin-bottom: 20px;
         /* Add some space before footer */
@@ -208,6 +209,7 @@
             <canvas id="progressChart"></canvas>
         </div>
         <div class="empty-column">
+            <canvas id="lineChangeChart"></canvas>
         </div>
     </div>
 </div>
@@ -218,14 +220,17 @@
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-    var preplotLines = JSON.parse('{{ preplot_lines|escapejs }}');
-    var sequencePoints = {{sequence_points|safe}};
+        var preplotLines = JSON.parse('{{ preplot_lines|escapejs }}');
+        var sequencePoints = {{sequence_points|safe}};
+        var lineChangeTimes = {{line_change_times| safe }};
     
-    
+
+
     // Calculate completed and remaining lines
     const totalLines = preplotLines.length;
     const completedCount = preplotLines.filter(line => line.completed).length;
     const uncompletedCount = preplotLines.length - completedCount;
+
 
     // Update stats
     document.getElementById('totalLines').textContent = totalLines;
@@ -339,9 +344,9 @@
     pointLegend.addTo(map);
 
     // Add preplot lines
-    
+
     var preplotLayerGroup = L.layerGroup().addTo(map);
-    
+
     preplotLines.forEach(function (line, index) {
         var polyline = L.polyline([
             [line.latitude1, line.longitude1],
@@ -578,7 +583,98 @@
         }
     });
 
+    const labels = lineChangeTimes.map(change =>
+        `${change.from_sequence} → ${change.to_sequence}`
+    );
+    const data = lineChangeTimes.map(change => change.duration_minutes);
+    const average = data.reduce((a, b) => a + b, 0) / data.length;
 
+    // Create the chart
+    const ctx = document.getElementById('lineChangeChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Line Change Duration (minutes)',
+                    data: data,
+                    backgroundColor: 'rgba(255, 215, 0, 0.8)',
+                    borderColor: 'rgb(255, 215, 0)',
+                    borderWidth: 1
+            },
+                {
+                    label: 'Average',
+                    data: Array(labels.length).fill(average),  // Create array of same length as data
+                    type: 'line',
+                    borderColor: 'rgba(255, 99, 132, 1)',  // Bright pink
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,  // Hide points
+                    borderDash: [5, 5]  // Dashed line
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Line Change Times Between Sequences',
+                    color: '#ffffff'  /* White text */
+                },
+                legend: {
+                    labels: {
+                        color: '#ffffff'  /* White text */
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            if (context.dataset.label === 'Average') {
+                                return `Average: ${average.toFixed(1)} minutes`;
+                            }
+                            return `Duration: ${context.raw} minutes`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'  /* Lighter grid lines */
+                    },
+                    ticks: {
+                        color: '#ffffff'  /* White text */
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'  /* Lighter grid lines */
+                    },
+                    ticks: {
+                        color: '#ffffff'  /* White text */
+                    },
+                    min: 0,
+                    max: Math.ceil(Math.max(...data) * 1.1), // 10% padding
+                    suggestedMax: Math.ceil(Math.max(...data) * 1.1)
+                }
+            }
+        }
+    });
 
+    // Calculate and display statistics
+    if (data.length > 0) {
+        const avg = data.reduce((a, b) => a + b, 0) / data.length;
+        const max = Math.max(...data);
+
+        document.getElementById('avgChangeTime').textContent =
+            `${avg.toFixed(1)} minutes`;
+        document.getElementById('maxChangeTime').textContent =
+            `${max.toFixed(1)} minutes`;
+    }
 </script>
+
 {% endblock %}

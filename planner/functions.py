@@ -5,6 +5,7 @@ import numpy as np
 import re
 from planner.models import Sequence, PreplotLine
 from django.db.models import F
+import datetime
 
 
 def get_preplot_coordinates(preplot_file):
@@ -239,6 +240,21 @@ def srecords_to_df(srec):
             entry.append(int(line[0][70:73]))  # jday
             entry.append(line[0][73:79])  # time
 
+            # Convert Julian day and time to datetime
+            jday = int(line[0][70:73])
+            time_str = line[0][73:79]
+            year = int(line[0][79:83]) if len(line[0]) >= 83 else datetime.datetime.now().year
+
+            # Calculate date from Julian day
+            jan1 = datetime.datetime(year, 1, 1)
+            date = jan1 + datetime.timedelta(days=jday - 1)  # -1 because Julian day starts at 1
+            time = datetime.datetime.strptime(time_str, '%H%M%S').time()
+
+            # Combine date and time
+            dt = datetime.datetime.combine(date.date(), time)
+            entry.append(dt)  # Store complete datetime instead of separate jday/time
+
+
             # Convert Z coordinates to decimal degrees
             for z in [flines[k - 3], flines[k - 2], flines[k - 1]]:
                 zline = z.strip('\n').split(',')
@@ -264,6 +280,7 @@ def srecords_to_df(srec):
                           'depth',
                           'jday',
                           'time',
+                          'dt',
                           'zlat1',
                           'zlon1',
                           'zlat2',
@@ -271,6 +288,7 @@ def srecords_to_df(srec):
                           'zlat3',
                           'zlon3',
                       ])
+    
     df['mean lat'] = df.apply(
         lambda x: ave_x(x['zlat1'], x['zlat2'], x['zlat3']), axis=1)
     df['mean lon'] = df.apply(
@@ -442,7 +460,31 @@ def connect_sequences_to_preplot():
     print(f"\nCompleted with {updates} updates and {errors} errors")
 
 
+def julian_day_to_date(year, julian_day):
+    """
+    Convert Julian day to a Gregorian date, considering leap years.
 
+    Parameters:
+    year (int): The year.
+    julian_day (int): The Julian day (1 to 365 or 366 in leap years).
+
+    Returns:
+    datetime.date: The corresponding Gregorian date.
+    """
+    # Check if the year is a leap year
+    is_leap_year = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+
+    # Validate Julian day range
+    max_days = 366 if is_leap_year else 365
+    if not (1 <= julian_day <= max_days):
+        raise ValueError(f"Julian day must be between 1 and {max_days} for the year {year}.")
+
+    # Convert Julian day to date
+    jan_1 = datetime(year, 1, 1)  # January 1 of the given year
+    date = jan_1 + timedelta(days=julian_day - 1)  # Offset by Julian day - 1
+    return date.date()
+        
+    
 if __name__ == "__main__":
 
     seq = r"D:\web_app_projects\webapp\myobnapp\sourceapp\5049111014.NAD27.p190"
